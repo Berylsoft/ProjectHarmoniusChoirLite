@@ -9,7 +9,7 @@ pub fn routes() -> Router<ServerState> {
     Router::new().route(
         "/submit",
         post(submit::handler)
-            .layer(DefaultBodyLimit::disable() /* limited within multipart receive */)
+            .layer(DefaultBodyLimit::max(1_000_000_000) /* limited within multipart receive */)
             .get(submit_get::handler),
     )
 }

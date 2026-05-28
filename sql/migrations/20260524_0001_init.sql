@@ -26,6 +26,7 @@ create table submits(
 
     nth integer not null,
     user_signature text not null,
+    harmony_group_intention integer not null,
 
     -- BLAKE3
     file_hash blob not null,
@@ -65,6 +66,7 @@ as select
   s.user_id,
   s.nth,
   s.user_signature,
+  cast(s.harmony_group_intention as boolean) as harmony_group_intention,
   s.created_at,
   cast(
     exists (

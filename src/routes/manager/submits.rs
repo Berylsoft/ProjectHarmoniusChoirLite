@@ -67,6 +67,7 @@ pub async fn handler(
             id: submit.id,
             user_id: submit.user_id,
             nth: submit.nth,
+            hgi: submit.harmony_group_intention,
             signature: &submit.user_signature,
             created_at: &submit.created_at,
             status,
@@ -109,6 +110,7 @@ struct Item<'a> {
     user_id: i64,
     nth: i64,
     signature: &'a str,
+    hgi: bool,
     created_at: &'a str,
     status: Status,
 }

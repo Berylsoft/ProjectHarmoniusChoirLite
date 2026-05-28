@@ -18,8 +18,6 @@ struct ViewTemplate<'a> {
     prev_signature: &'a str,
     size_min: usize,
     size_max: usize,
-    size_min_text: &'a str,
-    size_max_text: &'a str,
 }
 
 #[expect(clippy::missing_errors_doc)]
@@ -38,16 +36,12 @@ pub async fn handler(
 
     let size_min = *SIZE_RANGE.start();
     let size_max = *SIZE_RANGE.end();
-    let size_min_text = format!("{}MB", size_min / 1_000_000);
-    let size_max_text = format!("{}MB", size_max / 1_000_000);
 
     Ok(Html(
         ViewTemplate {
             prev_signature: &prev_signature,
             size_min,
             size_max,
-            size_min_text: &size_min_text,
-            size_max_text: &size_max_text,
         }
         .render()?,
     ))

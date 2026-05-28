@@ -59,9 +59,11 @@
   <div>
     {% for item in items %}
       <div>
-        <a href="./submits/{{ item.id }}">#{{ item.id }}</a>, UID: {{ item.user_id }}, 第 {{ item.nth }} 次试音,
-        署名: {{ item.signature }}, 创建于: {{ item.created_at }},
-        状态: {{ format!("{:?}", item.status) }}
+        <a href="./submits/{{ item.id }}">#{{ item.id }}</a>,
+        UID: {{ item.user_id }}, 第 {{ item.nth }} 次试音,
+        署名: {{ item.signature }},
+        和声组意向: {% if item.hgi -%} 有 {%- else -%} 无 {%- endif %},
+        创建于: {{ item.created_at }}, 状态: {{ format!("{:?}", item.status) }}
       </div>
     {% endfor %}
   </div>

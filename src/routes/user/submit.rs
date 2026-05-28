@@ -30,6 +30,15 @@ use crate::{
 pub const SIZE_RANGE: RangeInclusive<usize> =
     1_000_000..=100_000_000_usize;
 
+#[derive(Debug)]
+pub struct SubmitReq {
+    signature: String,
+    /// `harmony_group_intention`
+    hgi: bool,
+    mime: Mime,
+    hash: blake3::Hash,
+}
+
 #[expect(clippy::missing_errors_doc)]
 pub async fn handler(
     token: AccessToken<access_token::User>,
@@ -38,8 +47,7 @@ pub async fn handler(
     multipart: Multipart,
 ) -> routes::Result<impl IntoResponse> {
     tracing::debug!("handling submit by (uid){}", token.uid());
-    let (signature, mime, hash) =
-        receive_into_storage(multipart, &redir_prefix).await?;
+    let req = receive_into_storage(multipart, &redir_prefix).await?;
 
     // TODO: limit submit count?
     // TODO: dedup?
@@ -70,9 +78,10 @@ pub async fn handler(
         &trans,
         token.uid(),
         nth,
-        signature,
-        hash.as_bytes().to_vec(),
-        mime.to_string(),
+        req.signature,
+        i64::from(req.hgi),
+        req.hash.as_bytes().to_vec(),
+        req.mime.to_string(),
         created_at,
     )
     .context("ins_submit")?
@@ -89,8 +98,9 @@ pub async fn handler(
 async fn receive_into_storage(
     mut multipart: Multipart,
     redir_prefix: &RedirPrefix,
-) -> Result<(String, Mime, blake3::Hash), routes::Error> {
+) -> Result<SubmitReq, routes::Error> {
     let mut signature = None;
+    let mut hgi = None;
     let mut file = None;
 
     while let Some(mut field) =
@@ -102,65 +112,67 @@ async fn receive_into_storage(
                 .with_detail("expect field name")
         })?;
 
+        macro_rules! check_dup {
+            ($var:ident) => {
+                if $var.is_some() {
+                    tracing::debug!(concat!(
+                        "duplicated field: ",
+                        stringify!($var)
+                    ));
+                    drain_field(&mut field).await?;
+                    return bad_req(concat!(
+                        "duplicated field: ",
+                        stringify!($var)
+                    ));
+                }
+            };
+        }
+
         match name {
             "signature" => {
-                if signature.is_some() {
-                    tracing::debug!("duplicated field: signature");
-                    return bad_req("duplicated field: signature");
-                }
+                check_dup!(signature);
+                signature = Some(receive_signature(&mut field).await?);
+            }
+            "hgi" => {
+                check_dup!(hgi);
 
-                let mut buf = vec![];
-                while let Some(chunk) =
-                    field.chunk().await.map_err(map_multipart_err)?
-                {
-                    if buf.len() + chunk.len()
-                        > MAX_USER_SIGNATURE_LENGTH * 4
-                    {
-                        drain_field(field).await?;
-                        tracing::debug!("user signature field too large");
-                        return bad_req("invalid signature");
-                    }
-                    buf.extend(chunk);
-                }
-                let sig = String::from_utf8(buf);
-                match sig {
-                    Ok(sig) => {
-                        if !is_valid_user_signature(&sig) {
-                            tracing::debug!("invalid user signature");
-                            return bad_req("invalid signature");
-                        }
-
-                        signature = Some(sig);
-                    }
-                    Err(err) => {
-                        tracing::debug!(
-                            "expect utf8 in field signature, but: {err}"
-                        );
-                        return bad_req("expect utf8 in field signature");
-                    }
-                }
+                let buf = receive_with_limit(&mut field, 1).await?;
+                let Some(buf) = buf else {
+                    tracing::debug!("hgi field too large");
+                    return bad_req("invalid hgi");
+                };
+                hgi = Some(
+                    if buf[0] == b'0' {
+                        false
+                    } else if buf[0] == b'1' {
+                        true
+                    } else {
+                        tracing::debug!("hgi field content invalid");
+                        return bad_req("invalid hgi");
+                    },
+                );
             }
             "file" => {
-                if file.is_some() {
-                    tracing::debug!("duplicated field: file");
-                    return bad_req("duplicated field: file");
-                }
-
+                check_dup!(file);
                 file = Some(receive_file_tmp(field, redir_prefix).await?);
             }
             _ => {
+                let name = name.to_owned();
                 tracing::debug!("unknown field name {name}");
+                drain_field(&mut field).await?;
                 return bad_req(&format!("unknown field name: {name}"));
             }
         }
     }
 
-    let exists = (signature.is_some(), file.is_some());
-    let (Some(signature), Some(file)) = (signature, file) else {
+    let exists = (signature.is_some(), hgi.is_some(), file.is_some());
+    let (Some(signature), Some(hgi), Some(file)) = (signature, hgi, file)
+    else {
         tracing::warn!(
-            "missing field, exists: signature={}, file={}",
+            "missing field, exists: signature={}, hgi={}, file={}",
             exists.0,
-            exists.1
+            exists.1,
+            exists.2,
         );
         return bad_req("missing field");
     };
@@ -176,12 +188,43 @@ async fn receive_into_storage(
     file.persist(path).context("persist file into storage")?;
 
     tracing::debug!(
-        "user signature={signature:?}, file size={}, hash={}",
+        "user signature={signature:?}, hgi={hgi}, file size={}, hash={}",
         hasher.count(),
         hash.to_hex()
     );
 
-    Ok((signature, mime, hash))
+    Ok(SubmitReq {
+        signature,
+        hgi,
+        mime,
+        hash,
+    })
+}
+
+async fn receive_signature(
+    field: &mut Field<'_>,
+) -> Result<String, routes::Error> {
+    let buf =
+        receive_with_limit(field, MAX_USER_SIGNATURE_LENGTH * 4).await?;
+    let Some(buf) = buf else {
+        tracing::debug!("user signature field too large");
+        return bad_req("invalid signature");
+    };
+
+    match String::from_utf8(buf) {
+        Ok(sig) => {
+            if !is_valid_user_signature(&sig) {
+                tracing::debug!("invalid user signature");
+                return bad_req("invalid signature");
+            }
+
+            Ok(sig)
+        }
+        Err(err) => {
+            tracing::debug!("expect utf8 in field signature, but: {err}");
+            bad_req("expect utf8 in field signature")
+        }
+    }
 }
 
 async fn receive_file_tmp(
@@ -230,7 +273,7 @@ async fn receive_file_tmp(
             redir_prefix,
         );
         if let Err(err) = res {
-            drain_field(field).await?;
+            drain_field(&mut field).await?;
             return Err(err);
         }
 
@@ -238,7 +281,7 @@ async fn receive_file_tmp(
             .is_ok_and(|it| it + chunk.len() < *SIZE_RANGE.end())
         {
             tracing::debug!("file size too large");
-            drain_field(field).await?;
+            drain_field(&mut field).await?;
             return file_size_err();
         }
 
@@ -301,7 +344,25 @@ fn check_content_type(
     Ok(())
 }
 
-async fn drain_field(mut field: Field<'_>) -> routes::Result<()> {
+async fn receive_with_limit(
+    field: &mut Field<'_>,
+    limit: usize,
+) -> routes::Result<Option<Vec<u8>>> {
+    let mut buf = vec![];
+    while let Some(chunk) =
+        field.chunk().await.map_err(map_multipart_err)?
+    {
+        if buf.len() + chunk.len() > limit {
+            drain_field(field).await?;
+            return Ok(None);
+        }
+        buf.extend(chunk);
+    }
+
+    Ok(Some(buf))
+}
+
+async fn drain_field(field: &mut Field<'_>) -> routes::Result<()> {
     while field.chunk().await.map_err(map_multipart_err)?.is_some() {}
     Ok(())
 }

@@ -69,6 +69,7 @@ pub async fn handler(
             user_id: submit.user_id,
             nth: submit.nth,
             signature: &submit.user_signature,
+            hgi: submit.harmony_group_intention,
             created_at: &submit.created_at,
             // statuse
             replaced,
@@ -90,6 +91,7 @@ struct ViewTemplate<'a> {
     user_id: i64,
     nth: i64,
     signature: &'a str,
+    hgi: bool,
     created_at: &'a str,
     // status
     replaced: bool,

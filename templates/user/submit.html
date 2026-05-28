@@ -6,12 +6,14 @@
 
 {% block head -%}
   {% include "buttonInclude.html" %}
+  {% include "selectorInclude.html" %}
 {%- endblock %}
 
 {% block content %}
   <form id="formSubmit" action="" method="post" enctype="multipart/form-data">
     <div>
       <label>
+        文件: 
         <input type="file" name="file" required>
       </label>
     </div>
@@ -28,11 +30,22 @@
       </label>
     </div>
     <div>
+      <label>
+        和声组意向: 
+        <input type="hidden" name="hgi" value="0">
+        <comp-selector id="selHgi">
+          <button data-selected type="button">无</button>
+          <button type="button">有</button>
+        </comp-selector>
+      </label>
+    </div>
+    <div>
       <button class="button theme">提交</button>
     </div>
-    <script>
+    <script type="module">
+      const es = formSubmit.elements;
       const r = /^(?:[^\x00-\x1F\x7F-\u009F\uE000-\uF8FF\u{F0000}-\u{FFFFD}\u{100000}-\u{10FFFD}]*)$/u;
-      formSubmit.elements.signature.oninput = (e) => {
+      es.signature.oninput = (e) => {
         const i = e.target;
         if (!r.test(i.value)) {
           i.setCustomValidity("character isn't supported");
@@ -41,16 +54,21 @@
         }
       };
 
-      formSubmit.elements.file.oninput = (e) => {
+      es.file.oninput = (e) => {
         const i = e.target;
         const f = i.files[0];
         if (f && (f.size < {{ size_min }} || f.size > {{ size_max }})) {
           i.setCustomValidity(
-            "文件大小不正确, 请选择大小在 {{ size_min_text }} 和 {{ size_max_text }} 之间的文件"
+            "不支持的文件大小, 请选择大小在 {{ size_min | filesizeformat }} \
+和 {{ size_max | filesizeformat }} 之间的文件"
           );
         } else {
           i.setCustomValidity("");
         }
+      };
+
+      selHgi.onchange = (s) => {
+        es.hgi.value = s[0] ? "0" : "1"
       };
     </script>
   </form>

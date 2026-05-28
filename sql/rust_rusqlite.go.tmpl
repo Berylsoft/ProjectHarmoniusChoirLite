@@ -52,6 +52,7 @@ use serde::{Serialize, Deserialize};
     #[derive(Debug)]
     {{- end }}
     #[allow(non_camel_case_types)]
+    #[allow(clippy::struct_excessive_bools)]
     pub struct {{ $rowType }} { {{- range .Columns}}
     pub {{.Name}}:
     {{- if not .NotNull }}Option<{{end}}
@@ -73,6 +74,7 @@ use serde::{Serialize, Deserialize};
 {{- $returnType := printf "Vec<%s>" $rowType -}}
 #[allow(clippy::missing_errors_doc)]
 #[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::too_many_arguments)]
 pub fn {{.Name}}(conn: &rusqlite::Connection{{range .Params}},
   {{.Column.Name}}:{{template "RustType" .Column}}
 {{- end}}
@@ -98,6 +100,7 @@ pub fn {{.Name}}(conn: &rusqlite::Connection{{range .Params}},
 {{- $returnType := printf "Option<%s>" $rowType -}}
 #[allow(clippy::missing_errors_doc)]
 #[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::too_many_arguments)]
 pub fn {{.Name}}(conn: &rusqlite::Connection{{range .Params}},
   {{.Column.Name}}:{{template "RustType" .Column}}
 {{- end}}
@@ -120,6 +123,7 @@ pub fn {{.Name}}(conn: &rusqlite::Connection{{range .Params}},
 {{- if eq .Cmd ":exec" }}
 #[allow(clippy::missing_errors_doc)]
 #[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::too_many_arguments)]
 pub fn {{.Name}}(conn: &rusqlite::Connection{{range .Params}},
   {{.Column.Name}}:{{template "RustType" .Column}}
 {{- end}}
