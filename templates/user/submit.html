@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title -%}
+  提交试音
+{%- endblock %}
+
+{% block head -%}
+  {% include "buttonInclude.html" %}
+{%- endblock %}
+
+{% block content %}
+  <form id="formSubmit" action="" method="post" enctype="multipart/form-data">
+    <div>
+      <label>
+        <input type="file" name="file" required>
+      </label>
+    </div>
+    <div>
+      <label>
+        署名: 
+        <input type="text"
+          name="signature"
+          required
+          minlength="1"
+          maxlength="20"
+          value="{{ prev_signature }}"
+          >
+      </label>
+    </div>
+    <div>
+      <button class="button theme">提交</button>
+    </div>
+    <script>
+      const r = /^(?:[^\x00-\x1F\x7F-\u009F\uE000-\uF8FF\u{F0000}-\u{FFFFD}\u{100000}-\u{10FFFD}]*)$/u;
+      formSubmit.elements.signature.oninput = (e) => {
+        const i = e.target;
+        if (!r.test(i.value)) {
+          i.setCustomValidity("character isn't supported");
+        } else {
+          i.setCustomValidity("");
+        }
+      };
+
+      formSubmit.elements.file.oninput = (e) => {
+        const i = e.target;
+        const f = i.files[0];
+        if (f && (f.size < {{ size_min }} || f.size > {{ size_max }})) {
+          i.setCustomValidity(
+            "文件大小不正确, 请选择大小在 {{ size_min_text }} 和 {{ size_max_text }} 之间的文件"
+          );
+        } else {
+          i.setCustomValidity("");
+        }
+      };
+    </script>
+  </form>
+{% endblock %}

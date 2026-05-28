@@ -4,10 +4,7 @@
 #![allow(clippy::default_trait_access)]
 #![allow(clippy::unnecessary_debug_formatting)]
 
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fs, path::PathBuf};
 
 use anyhow::Context as _;
 use base64::{Engine as _, prelude::BASE64_URL_SAFE_NO_PAD};

@@ -48,7 +48,7 @@ pub async fn handler(
     let readonly = !matches!(status, Status::Pending);
 
     let rejected = matches!(status, Status::Rejected) || !readonly;
-    let (passed, choir, lead, harmony) = if let Status::Passed {
+    let (passed, lead, harmony) = if let Status::Passed {
         groups,
         replaced: r,
     } = &status
@@ -56,7 +56,6 @@ pub async fn handler(
         replaced |= *r;
         (
             true,
-            groups.contains(&Group::Choir),
             groups.contains(&Group::Lead),
             groups.contains(&Group::Harmony),
         )
@@ -75,7 +74,6 @@ pub async fn handler(
             replaced,
             readonly,
             passed,
-            choir,
             lead,
             harmony,
             rejected,
@@ -84,6 +82,7 @@ pub async fn handler(
     ))
 }
 
+#[expect(clippy::struct_excessive_bools)]
 #[derive(Debug, Template)]
 #[template(path = "manager/submit_detail.html")]
 struct ViewTemplate<'a> {
@@ -96,7 +95,6 @@ struct ViewTemplate<'a> {
     replaced: bool,
     readonly: bool,
     passed: bool,
-    choir: bool,
     lead: bool,
     harmony: bool,
     rejected: bool,

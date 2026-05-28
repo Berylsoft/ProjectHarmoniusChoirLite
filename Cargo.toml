@@ -14,7 +14,12 @@ base64 = "0.22.1"
 blake3 = "1.8.5"
 derive_more = { version = "2.1.1", features = ["full"] }
 dotenvy = "0.15.7"
-ed25519-dalek = { version = "2.2.0", features = ["rand_core", "pkcs8", "pem", "serde"] }
+ed25519-dalek = { version = "2.2.0", features = [
+    "rand_core",
+    "pkcs8",
+    "pem",
+    "serde",
+] }
 include_dir = "0.7.4"
 mime = "0.3.17"
 problem_details = { version = "0.9.0", features = ["axum"] }
@@ -27,10 +32,21 @@ simple_deref = { git = "https://github.com/BillGoldenWater/utils_rs.git", rev = 
 strum = { version = "0.28.0", features = ["derive"] }
 tempfile = "3.27.0"
 thiserror = "2.0.18"
-time = { version = "0.3.47", features = ["formatting", "serde", "serde-human-readable"] }
+time = { version = "0.3.47", features = [
+    "formatting",
+    "serde",
+    "serde-human-readable",
+] }
 tokio = { version = "1.52.3", features = ["full"] }
-tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["handshake", "stream"] }
-tower-http = { version = "0.6.11", features = ["trace", "timeout", "request-id"] }
+tokio-tungstenite = { version = "0.29.0", default-features = false, features = [
+    "handshake",
+    "stream",
+] }
+tower-http = { version = "0.6.11", features = [
+    "trace",
+    "timeout",
+    "request-id",
+] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 ulid = "1.2.1"
@@ -94,4 +110,3 @@ unnested_or_patterns = "warn"
 unused_self = "warn"
 use_self = "warn"
 verbose_file_reads = "warn"
-

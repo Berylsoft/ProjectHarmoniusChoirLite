@@ -1,10 +1,10 @@
-use std::{fs, str::FromStr};
+use std::{fs, ops::RangeInclusive, str::FromStr};
 
 use anyhow::Context as _;
 use axum::{
     extract::{
         Multipart,
-        multipart::{self, MultipartError},
+        multipart::{self, Field, MultipartError},
     },
     http::StatusCode,
     response::IntoResponse,
@@ -15,25 +15,34 @@ use tempfile::NamedTempFile;
 use tokio::io::AsyncWriteExt as _;
 
 use crate::{
-    TransactionDeferBegin,
+    RedirPrefix, TransactionDeferBegin,
     routes::{
         self,
         auth::access_token::{self, AccessToken},
     },
     sql,
-    utils::{hash_to_storage_path, is_valid_user_signature},
+    utils::{
+        MAX_USER_SIGNATURE_LENGTH, file, hash_to_storage_path,
+        is_valid_user_signature, res_see_other, res_see_other_err_res,
+    },
 };
+
+pub const SIZE_RANGE: RangeInclusive<usize> =
+    1_000_000..=100_000_000_usize;
 
 #[expect(clippy::missing_errors_doc)]
 pub async fn handler(
     token: AccessToken<access_token::User>,
     trans: TransactionDeferBegin,
+    redir_prefix: RedirPrefix,
     multipart: Multipart,
 ) -> routes::Result<impl IntoResponse> {
     tracing::debug!("handling submit by (uid){}", token.uid());
-    let (signature, mime, hash) = receive_into_storage(multipart).await?;
+    let (signature, mime, hash) =
+        receive_into_storage(multipart, &redir_prefix).await?;
 
     // TODO: limit submit count?
+    // TODO: dedup?
 
     let trans = trans.begin().await?;
 
@@ -74,16 +83,17 @@ pub async fn handler(
 
     tracing::debug!("submitted: (sid){sid}");
 
-    Ok(())
+    Ok(res_see_other(&redir_prefix, "/user/submits"))
 }
 
 async fn receive_into_storage(
     mut multipart: Multipart,
+    redir_prefix: &RedirPrefix,
 ) -> Result<(String, Mime, blake3::Hash), routes::Error> {
     let mut signature = None;
     let mut file = None;
 
-    while let Some(field) =
+    while let Some(mut field) =
         multipart.next_field().await.map_err(map_multipart_err)?
     {
         let name = field.name().ok_or_else(|| {
@@ -99,17 +109,28 @@ async fn receive_into_storage(
                     return bad_req("duplicated field: signature");
                 }
 
-                let bytes =
-                    field.bytes().await.map_err(map_multipart_err)?;
-                let sig = str::from_utf8(&bytes);
+                let mut buf = vec![];
+                while let Some(chunk) =
+                    field.chunk().await.map_err(map_multipart_err)?
+                {
+                    if buf.len() + chunk.len()
+                        > MAX_USER_SIGNATURE_LENGTH * 4
+                    {
+                        drain_field(field).await?;
+                        tracing::debug!("user signature field too large");
+                        return bad_req("invalid signature");
+                    }
+                    buf.extend(chunk);
+                }
+                let sig = String::from_utf8(buf);
                 match sig {
                     Ok(sig) => {
-                        if !is_valid_user_signature(sig) {
+                        if !is_valid_user_signature(&sig) {
                             tracing::debug!("invalid user signature");
                             return bad_req("invalid signature");
                         }
 
-                        signature = Some(sig.to_owned());
+                        signature = Some(sig);
                     }
                     Err(err) => {
                         tracing::debug!(
@@ -125,7 +146,7 @@ async fn receive_into_storage(
                     return bad_req("duplicated field: file");
                 }
 
-                file = Some(receive_file_tmp(field).await?);
+                file = Some(receive_file_tmp(field, redir_prefix).await?);
             }
             _ => {
                 tracing::debug!("unknown field name {name}");
@@ -165,6 +186,7 @@ async fn receive_into_storage(
 
 async fn receive_file_tmp(
     mut field: multipart::Field<'_>,
+    redir_prefix: &RedirPrefix,
 ) -> Result<
     (NamedTempFile<tokio::fs::File>, Mime, blake3::Hasher),
     routes::Error,
@@ -174,15 +196,13 @@ async fn receive_file_tmp(
         return bad_req("expect content type");
     };
 
-    let content_type = match Mime::from_str(content_type) {
+    let mut content_type = match Mime::from_str(content_type) {
         Ok(content_type) => content_type,
         Err(err) => {
             tracing::debug!("invalid content type for file: {err}");
             return bad_req("invalid content type");
         }
     };
-
-    // TODO: check content type is accepted
 
     let mut hasher = blake3::Hasher::new();
     let temp_file = tempfile::Builder::default()
@@ -194,9 +214,34 @@ async fn receive_file_tmp(
         NamedTempFile::from_parts(file, path)
     };
 
+    let file_size_err =
+        || res_see_other_err_res(redir_prefix, "/user/error/file_size");
+
+    let mut head = Some([0_u8; 12]);
+    let mut head_idx = 0;
     while let Some(chunk) =
         field.chunk().await.map_err(map_multipart_err)?
     {
+        let res = check_content_type(
+            &mut content_type,
+            &mut head,
+            &mut head_idx,
+            &chunk,
+            redir_prefix,
+        );
+        if let Err(err) = res {
+            drain_field(field).await?;
+            return Err(err);
+        }
+
+        if !usize::try_from(hasher.count())
+            .is_ok_and(|it| it + chunk.len() < *SIZE_RANGE.end())
+        {
+            tracing::debug!("file size too large");
+            drain_field(field).await?;
+            return file_size_err();
+        }
+
         hasher.update(&chunk);
         temp_file
             .as_file_mut()
@@ -205,14 +250,65 @@ async fn receive_file_tmp(
             .context("write into temp file")?;
     }
 
-    // TODO: check file size in range
+    if usize::try_from(hasher.count()).unwrap_or(usize::MAX)
+        < *SIZE_RANGE.start()
+    {
+        tracing::debug!("file size too small");
+        return file_size_err();
+    }
 
     Ok((temp_file, content_type, hasher))
 }
 
+#[inline]
+fn check_content_type(
+    content_type: &mut Mime,
+    head: &mut Option<[u8; 12]>,
+    head_idx: &mut usize,
+    chunk: &axum::body::Bytes,
+    redir_prefix: &RedirPrefix,
+) -> Result<(), routes::Error> {
+    let Some(buf) = head else {
+        return Ok(());
+    };
+
+    for ch in chunk {
+        if *head_idx >= 12 {
+            break;
+        }
+        buf[*head_idx] = *ch;
+        *head_idx += 1;
+    }
+
+    if *head_idx < 12 {
+        return Ok(());
+    }
+
+    if let Some(ty) = file::Type::detect(buf) {
+        *content_type = ty.to_mime();
+    } else {
+        tracing::debug!(
+            "unknown file content type, header: {content_type}"
+        );
+        return res_see_other_err_res(
+            redir_prefix,
+            "/user/error/file_type",
+        );
+    }
+
+    *head = None;
+
+    Ok(())
+}
+
+async fn drain_field(mut field: Field<'_>) -> routes::Result<()> {
+    while field.chunk().await.map_err(map_multipart_err)?.is_some() {}
+    Ok(())
+}
+
 #[expect(clippy::needless_pass_by_value, reason = "for map_err")]
 fn map_multipart_err(err: MultipartError) -> routes::Error {
-    tracing::debug!("failed to receive multipart body: {err}");
+    tracing::debug!("failed to receive multipart body: {err:?}");
     ProblemDetails::from_status_code(StatusCode::BAD_REQUEST)
         .with_detail("bad body")
         .into()

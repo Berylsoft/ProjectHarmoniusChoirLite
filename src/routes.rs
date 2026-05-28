@@ -146,6 +146,12 @@ impl From<ProblemDetails> for Error {
     }
 }
 
+impl From<axum::http::Response<axum::body::Body>> for Error {
+    fn from(value: axum::http::Response<axum::body::Body>) -> Self {
+        Self::Custom(value.into())
+    }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 async fn problem_detail_with_req_id(

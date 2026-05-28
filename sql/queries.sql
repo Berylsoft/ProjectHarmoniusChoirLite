@@ -119,3 +119,10 @@ order by id desc;
 select *
 from submits_info_with_marking 
 where id = ?;
+
+-- name: get_previous_submit_signature_by_user_id :one
+select user_signature
+from submits
+where user_id = ?
+order by id desc
+limit 1;

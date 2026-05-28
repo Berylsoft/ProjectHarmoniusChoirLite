@@ -4,10 +4,18 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use axum::{
+    http::{StatusCode, header},
+    response::IntoResponse as _,
+};
 use tower_http::request_id::{MakeRequestId, RequestId};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 use ulid::Ulid;
+
+use crate::{RedirPrefix, routes};
+
+pub mod file;
 
 pub fn init_env() {
     dotenvy::dotenv().ok();
@@ -76,22 +84,22 @@ pub fn var_opt(
     }
 }
 
+pub const MAX_USER_SIGNATURE_LENGTH: usize = 20;
+
 #[must_use]
 pub fn is_valid_user_signature(user_signature: &str) -> bool {
-    const MAX_LENGTH: usize = 20;
-
     if user_signature.is_empty() {
         return false;
     }
 
-    if user_signature.len() > MAX_LENGTH * 4 {
+    if user_signature.len() > MAX_USER_SIGNATURE_LENGTH * 4 {
         return false;
     }
 
     let mut cnt = 0;
     for ch in user_signature.chars() {
         cnt += 1;
-        if cnt > MAX_LENGTH {
+        if cnt > MAX_USER_SIGNATURE_LENGTH {
             return false;
         }
 
@@ -131,4 +139,24 @@ pub fn warn_problem(problem: &'static str, indicate: &'static str) {
 pub fn warn_problem_general(problem: &'static str) {
     let indicate = "broken invariant or abnormal behavior";
     warn_problem(problem, indicate);
+}
+
+#[must_use]
+pub fn res_see_other(
+    prefix: &RedirPrefix,
+    path: &str,
+) -> axum::http::Response<axum::body::Body> {
+    (
+        StatusCode::SEE_OTHER,
+        [(header::LOCATION, format!("{}{path}", &**prefix))],
+    )
+        .into_response()
+}
+
+#[expect(clippy::missing_errors_doc)]
+pub fn res_see_other_err_res<T>(
+    prefix: &RedirPrefix,
+    path: &str,
+) -> routes::Result<T> {
+    Err(res_see_other(prefix, path).into())
 }
