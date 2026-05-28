@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>{% block title %} Title {% endblock %}</title>
+
+    <link rel="icon" href="/favicon.webp" />
+    <link href="/static/css/normalize.css" rel="stylesheet" />
+    <link href="/static/css/style.css" rel="stylesheet" />
+    <meta name="color-scheme" content="dark" />
+
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    {% block content %}{% endblock %}
+    {% if true %}
+    <script type="module">
+      let toReload = false;
+
+      setInterval(() => {
+        fetch("/healthcheck")
+          .then(() => {
+            if (toReload) {
+              window.location.reload();
+            }
+          })
+          .catch(() => {
+            toReload = true;
+          });
+      }, 1000);
+    </script>
+    {% endif %}
+  </body>
+</html>

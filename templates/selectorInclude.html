@@ -1,0 +1,5 @@
+<link href="/static/components/selector.css" rel="stylesheet" />
+<script src="/static/components/selector.js" type="module"></script>
+{% macro selected(selected) %}
+  {% if selected %} data-selected {% endif %}
+{% endmacro %}

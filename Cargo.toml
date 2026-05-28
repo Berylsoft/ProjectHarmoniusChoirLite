@@ -1,0 +1,97 @@
+[package]
+name = "review_sys"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { version = "1.0.102", features = ["backtrace"] }
+argh = "0.1.19"
+askama = "0.16.0"
+axum = { version = "0.8.8", features = ["http2", "macros", "multipart", "ws"] }
+axum-extra = { version = "0.12.6", features = ["cookie"] }
+axum_extractors = { git = "https://github.com/BillGoldenWater/utils_rs.git", rev = "0c3ef8e5f932a4036ef1456f1cd1a17a13d593c2", version = "0.1.0" }
+base64 = "0.22.1"
+blake3 = "1.8.5"
+derive_more = { version = "2.1.1", features = ["full"] }
+dotenvy = "0.15.7"
+ed25519-dalek = { version = "2.2.0", features = ["rand_core", "pkcs8", "pem", "serde"] }
+include_dir = "0.7.4"
+mime = "0.3.17"
+problem_details = { version = "0.9.0", features = ["axum"] }
+rand = "0.8.5"
+rusqlite = "0.38.0"
+rusqlite_migration = { version = "2.4.1", features = ["from-directory"] }
+serde = "1.0.228"
+signed_data = { git = "https://github.com/BillGoldenWater/utils_rs.git", rev = "4b669f23fc66c4ce43e66e8a65af5b19d1faddc4", version = "0.1.0" }
+simple_deref = { git = "https://github.com/BillGoldenWater/utils_rs.git", rev = "69b82b0f2ba50fda4cea33acec7a8115c3a014c6", version = "0.1.0" }
+strum = { version = "0.28.0", features = ["derive"] }
+tempfile = "3.27.0"
+thiserror = "2.0.18"
+time = { version = "0.3.47", features = ["formatting", "serde", "serde-human-readable"] }
+tokio = { version = "1.52.3", features = ["full"] }
+tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["handshake", "stream"] }
+tower-http = { version = "0.6.11", features = ["trace", "timeout", "request-id"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+ulid = "1.2.1"
+
+[build-dependencies]
+anyhow = { version = "1.0.102", features = ["backtrace"] }
+
+[features]
+mock_login = []
+mock_token = []
+
+[lints.rust]
+unsafe_code = "forbid"
+
+rust_2018_idioms = { level = "warn", priority = -1 }
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+
+[lints.clippy]
+default_trait_access = "allow"
+
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+
+await_holding_lock = "warn"
+dbg_macro = "warn"
+empty_enums = "warn"
+enum_glob_use = "warn"
+equatable_if_let = "warn"
+exit = "warn"
+filter_map_next = "warn"
+fn_params_excessive_bools = "warn"
+if_let_mutex = "warn"
+implicit_clone = "warn"
+imprecise_flops = "warn"
+inefficient_to_string = "warn"
+linkedlist = "warn"
+lossy_float_literal = "warn"
+macro_use_imports = "warn"
+manual_let_else = "warn"
+match_same_arms = "warn"
+match_wildcard_for_single_variants = "warn"
+mem_forget = "warn"
+must_use_candidate = "warn"
+needless_borrow = "warn"
+needless_continue = "warn"
+needless_pass_by_ref_mut = "warn"
+needless_pass_by_value = "warn"
+option_option = "warn"
+redundant_clone = "warn"
+ref_option = "warn"
+rest_pat_in_fully_bound_structs = "warn"
+return_self_not_must_use = "warn"
+single_match_else = "warn"
+str_to_string = "warn"
+suboptimal_flops = "warn"
+todo = "warn"
+trivially_copy_pass_by_ref = "warn"
+uninlined_format_args = "warn"
+unnested_or_patterns = "warn"
+unused_self = "warn"
+use_self = "warn"
+verbose_file_reads = "warn"
+

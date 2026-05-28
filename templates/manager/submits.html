@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {%- if filter.pending || enabled_filters.len() > 0 -%}
+    {{ items.len() }} 个
+    {%- if filter.pending -%}
+      待审核
+    {%- elif enabled_filters.len() > 0 -%}
+      {{- enabled_filters | join("且") -}}
+    {%- endif -%}
+    的提交
+  {%- else -%}
+    总共 {{ items.len() }} 个提交
+  {%- endif -%}
+{% endblock %}
+
+{% block head %}
+  {% include "selectorInclude.html" %}
+{% endblock %}
+
+{% macro selected(selected) %}
+  {% if selected %} data-selected {% endif %}
+{% endmacro %}
+
+{% macro handleToggle(name, current, unsets) %}
+  () => {
+    const query = new URLSearchParams(window.location.search);
+    {% if current %}
+      query.delete("{{ name }}");
+    {% else -%}
+      {% for unset in unsets -%}
+        query.delete("{{ unset }}");
+      {% endfor -%}
+      query.set("{{ name }}", "true");
+    {% endif %}
+    window.location.search = query;
+  }
+{% endmacro %}
+
+{% block content %}
+  <div style="background-color: var(--bgLight); padding: var(--20unit)">
+    筛选: 
+    <comp-selector id="filter" multi>
+      <button {{ selected(filter.pending) }}>待审核</button>
+      <button {{ selected(filter.rejected) }}>已拒绝</button>
+      <button {{ selected(filter.passed) }}>已通过</button>
+      <button {{ selected(filter.replaced) }}>被替代</button>
+    </comp-selector>
+    <script type="module">
+      const handlers = [
+        {{ handleToggle("pending", filter.pending, ["rejected", "passed", "replaced"]) }},
+        {{ handleToggle("rejected", filter.rejected, ["pending", "passed", "replaced"]) }},
+        {{ handleToggle("passed", filter.passed, ["pending", "rejected"]) }},
+        {{ handleToggle("replaced", filter.replaced, ["pending", "rejected"]) }},
+      ];
+      filter.onchange = (i, idx) => handlers[idx]();
+    </script>
+  </div>
+  <div>
+    {% for item in items %}
+      <div>
+        <a href="./submits/{{ item.id }}">#{{ item.id }}</a>, UID: {{ item.user_id }}, 第 {{ item.nth }} 次试音,
+        署名: {{ item.signature }}, 创建于: {{ item.created_at }},
+        状态: {{ format!("{:?}", item.status) }}
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

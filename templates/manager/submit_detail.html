@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}
+  审核来自 {{ signature }} 的试音#{{ id }}
+{% endblock %}
+
+{% block head %}
+  {% include "selectorInclude.html" %}
+  {% if !readonly %}
+    {% include "buttonInclude.html" %}
+  {% endif %}
+{% endblock %}
+{% import "selectorInclude.html" as sel %}
+
+{% block content %}
+  <div>SID: {{ id }}</div>
+  <div>UID: {{ user_id }}</div>
+  <div>次数: {{ nth }}</div>
+  <div>署名: {{ signature }}</div>
+  <div>提交时间: {{ created_at }}</div>
+  {% if !replaced || (replaced && passed) -%}
+    <div>
+      <comp-selector id="selPass"
+        {% if readonly -%} readonly {%- endif %}>
+        <button style="--color: var(--txtErr)"
+          {{ sel::selected(rejected) }}>
+          拒绝
+        </button>
+        <button style="--color: var(--txtOk)"
+          {{ sel::selected(passed) }}>
+          通过
+        </button>
+      </comp-selector>
+    </div>
+    <div id="selGroupContainer"
+      {% if !passed -%} style="display: none;" {%- endif %}>
+      <comp-selector id="selGroup"
+        {% if readonly -%} readonly {%- endif %} multi>
+        <button data-selected>合唱</button>
+        <button {{ sel::selected(lead) }}>领唱</button>
+        <button {{ sel::selected(harmony) }}>和声</button>
+      </comp-selector>
+    </div>
+    {% if !readonly -%}
+      <div>
+        <button id="submit" class="button theme">提交</button>
+      </div>
+      <script type="module">
+        import { init } from "/static/js/submitDetail.js";
+        init({{ id }}, selPass, selGroup, submit);
+      </script>
+    {%- endif %}
+  {%- endif %}
+  {% if replaced -%}
+    <div>
+      <comp-selector readonly>
+        <button data-selected>被替代</button>
+      </comp-selector>
+    </div>
+  {%- endif %}
+{% endblock %}

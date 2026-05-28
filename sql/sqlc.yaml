@@ -1,0 +1,20 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    schema: "migrations/"
+    queries: "queries.sql"
+    codegen:
+      - out: "out"
+        plugin: "sqlc-gen-from-template"
+        options:
+          template: "rust_rusqlite.go.tmpl"
+          filename: "generated.rs"
+          cache_statements: true
+overrides:
+  go: null
+plugins: 
+  - name: "sqlc-gen-from-template"
+    process:
+      cmd: "sqlc-gen-from-template"
+rules: []
+options: {}

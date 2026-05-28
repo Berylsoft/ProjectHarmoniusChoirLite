@@ -1,0 +1,36 @@
+comp-selector {
+  max-width: max-content;
+  background-color: var(--bgDark);
+  border-radius: var(--5unit);
+  display: inline-flex;
+}
+
+comp-selector > button {
+  padding: var(--5unit);
+  border: 0;
+  background: transparent;
+}
+
+comp-selector > button:is(:first-child) {
+  padding-left: var(--10unit);
+}
+
+comp-selector > button:is(:last-child) {
+  padding-right: var(--10unit);
+}
+
+comp-selector:not([readonly]) > button:hover {
+  filter: brightness(1.1);
+}
+
+comp-selector[readonly] > button {
+  cursor: default;
+}
+
+comp-selector > button {
+  color: var(--txtSec);
+}
+
+comp-selector > button[data-selected] {
+  color: var(--color, --txtSec);
+}

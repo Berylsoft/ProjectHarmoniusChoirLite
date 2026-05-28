@@ -1,0 +1,21 @@
+.button {
+  color: var(--txt);
+  background-color: var(--bgDark);
+
+  border: 0;
+  border-radius: var(--10unit);
+  padding: var(--5unit) var(--10unit);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.button.theme {
+  width: fit-content;
+
+  color: var(--bgDark);
+  background-color: var(--theme);
+
+  border-radius: var(--5unit);
+}
