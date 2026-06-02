@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title -%}
+  {{ items.len() }} 个已提交的试音
+{%- endblock %}
+
+{% block content %}
+  <div>
+    <a href="/user/submit">提交试音</a>
+  </div>
+  {% for item in items %}
+    {{ format!("{item:?}") }}
+    <br/>
+  {% endfor %}
+{% endblock %}

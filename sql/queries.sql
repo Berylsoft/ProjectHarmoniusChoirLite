@@ -128,3 +128,17 @@ from submits
 where user_id = ?
 order by id desc
 limit 1;
+
+-- name: get_all_submits_by_user_id :many
+select
+  s.id,
+  s.nth,
+  s.user_signature,
+  s.harmony_group_intention,
+  s.created_at,
+  s.rejected,
+  s.passed,
+  s.replaced
+from submits_info_with_marking s
+where user_id = ?
+order by id desc;
