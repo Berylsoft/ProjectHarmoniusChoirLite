@@ -124,8 +124,8 @@ where id = ?;
 
 -- name: get_previous_submit_signature_by_user_id :one
 select user_signature
-from submits
-where user_id = ?
+from submits_info_with_marking
+where user_id = ? and passed
 order by id desc
 limit 1;
 
