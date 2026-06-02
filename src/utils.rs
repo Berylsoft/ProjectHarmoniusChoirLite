@@ -1,6 +1,7 @@
 use std::{
     env::{self, VarError},
     ffi::OsStr,
+    fmt::Write as _,
     path::{Path, PathBuf},
 };
 
@@ -14,8 +15,6 @@ use tracing_subscriber::EnvFilter;
 use ulid::Ulid;
 
 use crate::{RedirPrefix, routes};
-
-pub mod file;
 
 pub fn init_env() {
     dotenvy::dotenv().ok();
@@ -159,4 +158,33 @@ pub fn res_see_other_err_res<T>(
     path: &str,
 ) -> routes::Result<T> {
     Err(res_see_other(prefix, path).into())
+}
+
+pub fn rfc5987_utf8(data: impl AsRef<str>) -> Box<str> {
+    let data = data.as_ref();
+    let mut encoded = String::with_capacity(data.len());
+
+    encoded.push_str("UTF-8''");
+
+    let mut buf = [0_u8; 4];
+    for ch in data.chars() {
+        match ch {
+            ch if ch.is_ascii_alphanumeric() => {
+                encoded.push(ch);
+            }
+            '!' | '#' | '$' | '&' | '+' | '-' | '.' | '^' | '_' | '`'
+            | '|' | '~' => {
+                encoded.push(ch);
+            }
+            ch => {
+                let utf8_bytes = ch.encode_utf8(&mut buf).as_bytes();
+                for byte in utf8_bytes {
+                    write!(&mut encoded, "%{byte:0>2x}")
+                        .expect("no error when write to string");
+                }
+            }
+        }
+    }
+
+    encoded.into_boxed_str()
 }

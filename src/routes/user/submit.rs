@@ -19,10 +19,11 @@ use crate::{
     routes::{
         self,
         auth::access_token::{self, AccessToken},
+        file,
     },
     sql,
     utils::{
-        MAX_USER_SIGNATURE_LENGTH, file, hash_to_storage_path,
+        MAX_USER_SIGNATURE_LENGTH, hash_to_storage_path,
         is_valid_user_signature, res_see_other, res_see_other_err_res,
     },
 };

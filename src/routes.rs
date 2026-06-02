@@ -15,6 +15,7 @@ use tower_http::{
 use crate::{ServerState, utils::MakeRequestUlid};
 
 pub mod auth;
+pub mod file;
 pub mod manager;
 pub mod user;
 

@@ -90,3 +90,30 @@ as select
     ) as boolean
   ) as replaced
 from submits s;
+
+create view submits_file_info_with_marking
+as select
+  s.id,
+  s.file_hash,
+  s.user_id,
+  s.user_signature,
+  cast(s.harmony_group_intention as boolean) as harmony_group_intention,
+  s.nth,
+  s.file_mime_type,
+  s.created_at,
+  cast(
+    exists (
+      select 1
+      from submit_passes sp
+      where sp.submit_id = s.id
+    ) as boolean
+  ) as passed,
+  cast(
+    exists (
+      select 1
+      from submit_replaces srep
+      where srep.submit_id = s.id
+    ) as boolean
+  ) as replaced
+from submits s
+order by s.id asc;

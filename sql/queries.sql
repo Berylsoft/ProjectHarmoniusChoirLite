@@ -142,3 +142,13 @@ select
 from submits_info_with_marking s
 where user_id = ?
 order by id desc;
+
+-- name: get_file_info_by_submit_id :one
+select *
+from submits_file_info_with_marking s
+where s.id = ?;
+
+-- name: get_file_infos_of_all_passed_submits :many
+select *
+from submits_file_info_with_marking s
+where s.passed and not s.replaced;
