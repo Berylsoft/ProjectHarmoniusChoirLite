@@ -31,6 +31,7 @@ create table submits(
     -- BLAKE3
     file_hash blob not null,
     file_mime_type text not null,
+    file_name text not null,
     -- RFC 3339
     created_at text not null,
     unique(user_id, nth)

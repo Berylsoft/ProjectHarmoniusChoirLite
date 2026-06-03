@@ -7,7 +7,6 @@ use std::{
     task::{self, Poll},
 };
 
-use anyhow::Context as _;
 use axum::{http::header, response::IntoResponse};
 use futures_core::future::BoxFuture;
 use time::UtcDateTime;

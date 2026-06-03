@@ -188,3 +188,22 @@ pub fn rfc5987_utf8(data: impl AsRef<str>) -> Box<str> {
 
     encoded.into_boxed_str()
 }
+
+/// true if within limit
+#[must_use]
+#[inline]
+pub fn length_check_quick(s: &str, limit: usize) -> bool {
+    if s.len() > limit * 4 {
+        return false;
+    }
+
+    let mut cnt = 0;
+    for _ in s.chars() {
+        cnt += 1;
+        if cnt > limit {
+            return false;
+        }
+    }
+
+    true
+}

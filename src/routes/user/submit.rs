@@ -24,7 +24,8 @@ use crate::{
     sql,
     utils::{
         MAX_USER_SIGNATURE_LENGTH, hash_to_storage_path,
-        is_valid_user_signature, res_see_other, res_see_other_err_res,
+        is_valid_user_signature, length_check_quick, res_see_other,
+        res_see_other_err_res,
     },
 };
 
@@ -38,6 +39,7 @@ pub struct SubmitReq {
     hgi: bool,
     mime: Mime,
     hash: blake3::Hash,
+    file_name: String,
 }
 
 #[expect(clippy::missing_errors_doc)]
@@ -82,6 +84,7 @@ pub async fn handler(
         req.signature,
         i64::from(req.hgi),
         req.hash.as_bytes().to_vec(),
+        req.file_name,
         req.mime.to_string(),
         created_at,
     )
@@ -96,6 +99,7 @@ pub async fn handler(
     Ok(res_see_other(&redir_prefix, "/user/submits"))
 }
 
+#[expect(clippy::too_many_lines)]
 async fn receive_into_storage(
     mut multipart: Multipart,
     redir_prefix: &RedirPrefix,
@@ -104,66 +108,74 @@ async fn receive_into_storage(
     let mut hgi = None;
     let mut file = None;
 
-    while let Some(mut field) =
-        multipart.next_field().await.map_err(map_multipart_err)?
-    {
-        let name = field.name().ok_or_else(|| {
-            tracing::debug!("expect field name in multipart body");
-            ProblemDetails::from_status_code(StatusCode::BAD_REQUEST)
-                .with_detail("expect field name")
-        })?;
+    let res = async {
+        while let Some(mut field) =
+            multipart.next_field().await.map_err(map_multipart_err)?
+        {
+            let name = field.name().ok_or_else(|| {
+                tracing::debug!("expect field name in multipart body");
+                ProblemDetails::from_status_code(StatusCode::BAD_REQUEST)
+                    .with_detail("expect field name")
+            })?;
 
-        macro_rules! check_dup {
-            ($var:ident) => {
-                if $var.is_some() {
-                    tracing::debug!(concat!(
-                        "duplicated field: ",
-                        stringify!($var)
-                    ));
+            macro_rules! check_dup {
+                ($var:ident) => {
+                    if $var.is_some() {
+                        tracing::debug!(concat!(
+                            "duplicated field: ",
+                            stringify!($var)
+                        ));
+                        drain_field(&mut field).await?;
+                        return bad_req(concat!(
+                            "duplicated field: ",
+                            stringify!($var)
+                        ));
+                    }
+                };
+            }
+
+            match name {
+                "signature" => {
+                    check_dup!(signature);
+                    signature =
+                        Some(receive_signature(&mut field).await?);
+                }
+                "hgi" => {
+                    check_dup!(hgi);
+                    hgi = receive_hgi(&mut field).await?;
+                }
+                "file" => {
+                    check_dup!(file);
+                    file = Some(
+                        receive_file_tmp(field, redir_prefix).await?,
+                    );
+                }
+                _ => {
+                    let name = name.to_owned();
+                    tracing::debug!("unknown field name {name}");
                     drain_field(&mut field).await?;
-                    return bad_req(concat!(
-                        "duplicated field: ",
-                        stringify!($var)
+                    return bad_req(&format!(
+                        "unknown field name: {name}"
                     ));
                 }
-            };
-        }
-
-        match name {
-            "signature" => {
-                check_dup!(signature);
-                signature = Some(receive_signature(&mut field).await?);
-            }
-            "hgi" => {
-                check_dup!(hgi);
-
-                let buf = receive_with_limit(&mut field, 1).await?;
-                let Some(buf) = buf else {
-                    tracing::debug!("hgi field too large");
-                    return bad_req("invalid hgi");
-                };
-                hgi = Some(
-                    if buf[0] == b'0' {
-                        false
-                    } else if buf[0] == b'1' {
-                        true
-                    } else {
-                        tracing::debug!("hgi field content invalid");
-                        return bad_req("invalid hgi");
-                    },
-                );
-            }
-            "file" => {
-                check_dup!(file);
-                file = Some(receive_file_tmp(field, redir_prefix).await?);
-            }
-            _ => {
-                let name = name.to_owned();
-                tracing::debug!("unknown field name {name}");
-                drain_field(&mut field).await?;
-                return bad_req(&format!("unknown field name: {name}"));
             }
         }
+        Ok(())
+    }
+    .await;
+
+    match res {
+        Ok(()) => {}
+        Err(err @ routes::Error::Problem(_)) => {
+            while multipart
+                .next_field()
+                .await
+                .map_err(map_multipart_err)?
+                .is_some()
+            {}
+            return Err(err);
+        }
+        Err(err) => return Err(err),
     }
 
     let exists = (signature.is_some(), hgi.is_some(), file.is_some());
@@ -178,7 +190,7 @@ async fn receive_into_storage(
         return bad_req("missing field");
     };
 
-    let (file, mime, hasher) = file;
+    let (file, mime, hasher, file_name) = file;
     let hash = hasher.finalize();
 
     let path = hash_to_storage_path(hash);
@@ -199,7 +211,29 @@ async fn receive_into_storage(
         hgi,
         mime,
         hash,
+        file_name,
     })
+}
+
+async fn receive_hgi(
+    field: &mut Field<'_>,
+) -> Result<Option<bool>, routes::Error> {
+    let buf = receive_with_limit(field, 1).await?;
+    let Some(buf) = buf else {
+        tracing::debug!("hgi field too large");
+        return bad_req("invalid hgi");
+    };
+
+    Ok(Some(
+        if buf[0] == b'0' {
+            false
+        } else if buf[0] == b'1' {
+            true
+        } else {
+            tracing::debug!("hgi field content invalid");
+            return bad_req("invalid hgi");
+        },
+    ))
 }
 
 async fn receive_signature(
@@ -232,13 +266,25 @@ async fn receive_file_tmp(
     mut field: multipart::Field<'_>,
     redir_prefix: &RedirPrefix,
 ) -> Result<
-    (NamedTempFile<tokio::fs::File>, Mime, blake3::Hasher),
+    (NamedTempFile<tokio::fs::File>, Mime, blake3::Hasher, String),
     routes::Error,
 > {
     let Some(content_type) = field.content_type() else {
         tracing::debug!("expect content type for file");
         return bad_req("expect content type");
     };
+
+    let Some(file_name) = field.file_name() else {
+        tracing::debug!("expect file name for file");
+        return bad_req("expect file name");
+    };
+
+    if !length_check_quick(file_name, 255) {
+        tracing::debug!("file name too long: {}bytes", file_name.len());
+        return bad_req("file name too long");
+    }
+
+    let file_name = file_name.to_owned();
 
     let mut content_type = match Mime::from_str(content_type) {
         Ok(content_type) => content_type,
@@ -301,7 +347,7 @@ async fn receive_file_tmp(
         return file_size_err();
     }
 
-    Ok((temp_file, content_type, hasher))
+    Ok((temp_file, content_type, hasher, file_name))
 }
 
 #[inline]

@@ -75,10 +75,10 @@ insert into submit_pass_groups
 
 -- name: ins_submit :one
 insert into submits
-(user_id,    nth,            user_signature, harmony_group_intention,
-  file_hash, file_mime_type, created_at) values
-(?,          ?,              ?,              ?,
-  ?,         ?,              ?)
+(user_id,    nth,       user_signature, harmony_group_intention,
+  file_hash, file_name, file_mime_type, created_at) values
+(?,          ?,         ?,              ?,
+  ?,         ?,         ?,              ?)
 returning id;
 
 -- name: get_submit_for_review_by_submit_id :one
