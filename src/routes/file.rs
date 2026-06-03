@@ -179,7 +179,7 @@ impl Info {
         let nth = self.nth;
         let ext = self.ty.to_ext();
 
-        format!("第四届_{uid}_{name}_{hgi}_第{nth}次试音.{ext}")
+        format!("第四届_{uid}_{name}_{hgi}_第{nth}次.{ext}")
             .into_boxed_str()
     }
 }
