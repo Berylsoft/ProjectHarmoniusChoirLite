@@ -21,12 +21,15 @@ use crate::{
 #[derive(Debug, Deserialize)]
 pub struct LoginToken {
     pub id: Box<str>,
+    pub is_manager: bool,
     pub expires: time::OffsetDateTime,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct LoginReqQuery {
     token: Box<str>,
+    #[cfg(feature = "mock_bot_token")]
+    is_manager: bool,
 }
 
 #[expect(clippy::missing_errors_doc)]
@@ -38,17 +41,23 @@ pub async fn handler(
     trans: TransactionDeferBegin,
     redir_prefix: RedirPrefix,
 ) -> routes::Result<impl IntoResponse> {
-    let token = if cfg!(feature = "mock_bot_token") {
-        LoginToken {
-            id: params.token,
-            expires: OffsetDateTime::UNIX_EPOCH,
+    let token = {
+        #[cfg(feature = "mock_bot_token")]
+        {
+            LoginToken {
+                id: params.token,
+                is_manager: params.is_manager,
+                expires: OffsetDateTime::UNIX_EPOCH,
+            }
         }
-    } else {
-        validate_bot_token::<LoginToken, _>(
-            &params.token,
-            &bot_key,
-            |token| token.expires >= OffsetDateTime::now_utc(),
-        )?
+        #[cfg(not(feature = "mock_bot_token"))]
+        {
+            validate_bot_token::<LoginToken, _>(
+                &params.token,
+                &bot_key,
+                |token| token.expires >= OffsetDateTime::now_utc(),
+            )?
+        }
     };
 
     let trans = trans.begin().await?;
@@ -72,8 +81,11 @@ pub async fn handler(
 
     trans.commit().await?;
 
-    let access_token =
-        AccessToken::<access_token::User>::new(user_id, token_id);
+    let access_token = AccessToken::<access_token::User>::new(
+        user_id,
+        token_id,
+        token.is_manager,
+    );
 
     let jar = jar.add(access_token.into_cookie_with(&state)?);
     Ok((

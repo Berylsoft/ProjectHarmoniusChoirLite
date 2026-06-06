@@ -5,20 +5,6 @@ create table users(
     token_id integer not null
 ) strict;
 
-insert into users
-(id, thirdparty_id, token_id) values
-(0,  "root",        0);
-
--- TODO: just use bot token to indicate manager?
-create table user_is_managers(
-    user_id integer primary key
-        references users(id) on delete restrict
-) strict;
-
-insert into user_is_managers
-(user_id) values
-(0);
-
 create table submits(
     id integer primary key autoincrement,
     user_id integer not null

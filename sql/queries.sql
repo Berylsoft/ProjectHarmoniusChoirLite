@@ -20,13 +20,6 @@ set token_id = token_id + 1
 where id = ?
 returning token_id;
 
--- name: is_manager_by_user_id :one
-select exists (
-  select 1
-  from user_is_managers
-  where user_id = ?
-) as is_manager;
-
 -- name: get_pending_submit_by_user_id :one
 select s.id, s.nth
 from submits s

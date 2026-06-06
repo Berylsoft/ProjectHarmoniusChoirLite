@@ -17,13 +17,12 @@ use crate::{ServerState, Transaction, routes, sql, utils::warn_problem};
 pub struct User;
 #[derive(Debug, Clone, Copy)]
 pub struct Manager;
-#[derive(Debug, Clone, Copy)]
-pub struct Root;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct AccessToken<V> {
     uid: i64,
     tid: i64,
+    ism: bool,
     expires: time::OffsetDateTime,
     #[serde(skip)]
     _verify: PhantomData<V>,
@@ -31,12 +30,13 @@ pub struct AccessToken<V> {
 
 impl<V> AccessToken<V> {
     #[must_use]
-    pub fn new(uid: i64, tid: i64) -> Self {
+    pub fn new(uid: i64, tid: i64, is_manager: bool) -> Self {
         let expires =
             OffsetDateTime::now_utc().add(time::Duration::days(7));
         Self {
             uid,
             tid,
+            ism: is_manager,
             expires,
             _verify: PhantomData,
         }
@@ -47,12 +47,14 @@ impl<V> AccessToken<V> {
         let Self {
             uid,
             tid,
+            ism,
             expires,
             _verify: _,
         } = self;
         AccessToken {
             uid,
             tid,
+            ism,
             expires,
             _verify: PhantomData,
         }
@@ -74,6 +76,11 @@ impl<V> AccessToken<V> {
     pub const fn uid(&self) -> i64 {
         self.uid
     }
+
+    #[must_use]
+    pub const fn is_manager(&self) -> bool {
+        self.ism
+    }
 }
 
 trait Verify {
@@ -88,7 +95,12 @@ impl Verify for AccessToken<User> {
         &self,
         trans: &Transaction,
     ) -> Result<(), AccessTokenRejection> {
-        tracing::debug!("uid: {}, utid: {}", self.uid, self.tid);
+        tracing::debug!(
+            "uid: {}, utid: {}, is_manager: {}",
+            self.uid,
+            self.tid,
+            self.ism
+        );
 
         let token_id = sql::get_user_token_id_by_user_id(trans, self.uid)
             .context("get_user_token_id_by_user_id")
@@ -114,30 +126,8 @@ impl Verify for AccessToken<Manager> {
     ) -> Result<(), AccessTokenRejection> {
         self.into_another::<User>().verify(trans)?;
 
-        let is_manager = sql::is_manager_by_user_id(trans, self.uid)
-            .context("is_manager_by_user_id")
-            .map_err(routes::Error::from)?
-            .context("exists should always return a row")
-            .map_err(routes::Error::from)?
-            .is_manager;
-
-        if !is_manager {
+        if !self.ism {
             return Err(AccessTokenRejection::NotManager);
-        }
-
-        Ok(())
-    }
-}
-
-impl Verify for AccessToken<Root> {
-    fn verify(
-        &self,
-        trans: &Transaction,
-    ) -> Result<(), AccessTokenRejection> {
-        self.into_another::<User>().verify(trans)?;
-
-        if self.uid != 0 {
-            return Err(AccessTokenRejection::NotRoot);
         }
 
         Ok(())
@@ -164,7 +154,7 @@ where
         state: &ServerState,
     ) -> Result<Self, Self::Rejection> {
         if cfg!(feature = "mock_token") {
-            return Ok(Self::new(0, 0));
+            return Ok(Self::new(0, 0, true));
         }
 
         let token: Token<Self, _> =
