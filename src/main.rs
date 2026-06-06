@@ -14,7 +14,7 @@ use ed25519_dalek::{
         DecodePrivateKey as _, DecodePublicKey, EncodePrivateKey as _,
     },
 };
-use review_sys::{
+use harmonius_choir_lite::{
     Config, ServerState, State,
     routes::{notify, routes},
     sql::db_open,
