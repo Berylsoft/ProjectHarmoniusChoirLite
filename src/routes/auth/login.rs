@@ -22,7 +22,8 @@ use crate::{
 pub struct LoginToken {
     pub id: Box<str>,
     pub is_manager: bool,
-    pub expires: time::OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Deserialize)]
@@ -55,7 +56,11 @@ pub async fn handler(
             validate_bot_token::<LoginToken, _>(
                 &params.token,
                 &bot_key,
-                |token| token.expires >= OffsetDateTime::now_utc(),
+                |token| {
+                    let now = OffsetDateTime::now_utc();
+                    (now - time::Duration::minutes(10)..=now)
+                        .contains(&token.created_at)
+                },
             )?
         }
     };

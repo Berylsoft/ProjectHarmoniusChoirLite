@@ -6,7 +6,7 @@ use signed_data::SignedData;
 
 use crate::{BotKey, routes};
 
-/// `additional_validation` should return true if valid false otherwise.
+/// `additional_validation` should return true if valid, false otherwise.
 ///
 /// # Errors
 ///

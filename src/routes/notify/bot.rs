@@ -30,7 +30,8 @@ use crate::{
 
 #[derive(Debug, Deserialize)]
 pub struct ConnectToken {
-    pub expires: time::OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: time::OffsetDateTime,
 }
 
 #[derive(Debug, Deserialize)]
@@ -39,11 +40,13 @@ pub struct ConnectReqQuery {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", content = "data")]
 pub enum Payload {
     Review { id: Box<str>, result: ReviewResult },
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(tag = "action", content = "data")]
 pub enum ReviewResult {
     Reject,
     Pass {
@@ -64,7 +67,11 @@ pub async fn handler(
         validate_bot_token::<ConnectToken, _>(
             &params.token,
             &bot_key,
-            |token| token.expires >= OffsetDateTime::now_utc(),
+            |token| {
+                let now = OffsetDateTime::now_utc();
+                (now - time::Duration::minutes(2)..=now)
+                    .contains(&token.created_at)
+            },
         )?;
     }
 
