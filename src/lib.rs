@@ -18,11 +18,17 @@ pub mod utils;
 
 #[derive(Debug, Clone)]
 pub struct ServerState {
-    pub cfg: Arc<ServerConfig>,
+    pub inner: Arc<State>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ServerConfig {
+#[derive(Debug)]
+pub struct State {
+    pub cfg: Config,
+    pub notify: routes::notify::State,
+}
+
+#[derive(Debug)]
+pub struct Config {
     pub db_path: Box<Path>,
     pub key: SigningKey,
     pub bot_key: VerifyingKey,
@@ -31,11 +37,11 @@ pub struct ServerConfig {
 
 impl axum_extractors::token::State for ServerState {
     fn get_signing_key(&self) -> Cow<'_, SigningKey> {
-        Cow::Borrowed(&self.cfg.key)
+        Cow::Borrowed(&self.inner.cfg.key)
     }
 }
 
-macro_rules! impl_cfg_from_state {
+macro_rules! impl_extract_state {
     ($ty:ty) => {
         impl FromRequestParts<ServerState> for $ty {
             type Rejection = ();
@@ -44,26 +50,31 @@ macro_rules! impl_cfg_from_state {
                 _parts: &mut axum::http::request::Parts,
                 state: &ServerState,
             ) -> Result<Self, Self::Rejection> {
-                Ok(Self(state.cfg.clone()))
+                Ok(Self(state.inner.clone()))
             }
         }
     };
 }
 
 #[derive(Debug)]
-pub struct Key(Arc<ServerConfig>);
-simple_deref::impl_deref!(ref Key => SigningKey = .0.key);
-impl_cfg_from_state!(Key);
+pub struct Key(Arc<State>);
+simple_deref::impl_deref!(ref Key => SigningKey = .0.cfg.key);
+impl_extract_state!(Key);
 
 #[derive(Debug)]
-pub struct BotKey(Arc<ServerConfig>);
-simple_deref::impl_deref!(ref BotKey => VerifyingKey = .0.bot_key);
-impl_cfg_from_state!(BotKey);
+pub struct BotKey(Arc<State>);
+simple_deref::impl_deref!(ref BotKey => VerifyingKey = .0.cfg.bot_key);
+impl_extract_state!(BotKey);
 
 #[derive(Debug)]
-pub struct RedirPrefix(Arc<ServerConfig>);
-simple_deref::impl_deref!(ref RedirPrefix => str = .0.redir_prefix);
-impl_cfg_from_state!(RedirPrefix);
+pub struct RedirPrefix(Arc<State>);
+simple_deref::impl_deref!(ref RedirPrefix => str = .0.cfg.redir_prefix);
+impl_extract_state!(RedirPrefix);
+
+#[derive(Debug)]
+pub struct Notify(Arc<State>);
+simple_deref::impl_deref!(ref Notify => routes::notify::State = .0.notify);
+impl_extract_state!(Notify);
 
 #[derive(Debug, derive_more::Deref)]
 pub struct Transaction(pub sql::Transaction);
@@ -73,10 +84,11 @@ impl Transaction {
     ///
     /// if underlying rusqlite call fails or
     /// unable to begin within retry limit
-    pub async fn begin(cfg: Arc<ServerConfig>) -> routes::Result<Self> {
+    pub async fn begin(state: Arc<State>) -> routes::Result<Self> {
         let begin = move || -> routes::Result<_> {
-            let conn = sql::db_open(&cfg.db_path, OpenFlags::default())
-                .context("open connetion")?;
+            let conn =
+                sql::db_open(&state.cfg.db_path, OpenFlags::default())
+                    .context("open connetion")?;
 
             let retry_limit: i32 = 100;
             let mut count = 0;
@@ -140,12 +152,12 @@ impl FromRequestParts<ServerState> for Transaction {
         _parts: &mut axum::http::request::Parts,
         state: &ServerState,
     ) -> Result<Self, Self::Rejection> {
-        Self::begin(state.cfg.clone()).await
+        Self::begin(state.inner.clone()).await
     }
 }
 
 #[derive(Debug, derive_more::Deref)]
-pub struct TransactionDeferBegin(Arc<ServerConfig>);
+pub struct TransactionDeferBegin(Arc<State>);
 
 impl TransactionDeferBegin {
     #[expect(clippy::missing_errors_doc, reason = "see the target fn")]
@@ -161,6 +173,6 @@ impl FromRequestParts<ServerState> for TransactionDeferBegin {
         _parts: &mut axum::http::request::Parts,
         state: &ServerState,
     ) -> Result<Self, Self::Rejection> {
-        Ok(Self(state.cfg.clone()))
+        Ok(Self(state.inner.clone()))
     }
 }

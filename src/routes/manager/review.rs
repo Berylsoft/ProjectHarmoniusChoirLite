@@ -6,10 +6,11 @@ use problem_details::ProblemDetails;
 use serde::Deserialize;
 
 use crate::{
-    Transaction, TransactionDeferBegin,
+    Notify, Transaction, TransactionDeferBegin,
     routes::{
         self, Payload,
         auth::access_token::{self, AccessToken},
+        notify::{self, bot::ReviewResult},
     },
     shared::Group,
     sql,
@@ -31,6 +32,7 @@ pub enum ReviewAction {
 #[expect(clippy::missing_errors_doc)]
 pub async fn handler(
     token: AccessToken<access_token::Manager>,
+    notify: Notify,
     trans: TransactionDeferBegin,
     req: Payload<ReviewReq>,
 ) -> routes::Result<impl IntoResponse> {
@@ -80,9 +82,19 @@ pub async fn handler(
         .into());
     }
 
-    execute_review(&trans, &req, submit.user_id)?;
+    let thirdparty_id =
+        sql::get_user_thirdparty_id_by_submit_id(&trans, req.sid)
+            .context("get_user_thirdparty_id_by_submit_id")?
+            .context("should return thirdparty_id")?
+            .thirdparty_id;
+    let result = execute_review(&trans, &req, submit.user_id)?;
 
     trans.commit().await?;
+
+    notify.notify_bot(notify::bot::Payload::Review {
+        id: thirdparty_id.into_boxed_str(),
+        result,
+    });
 
     Ok(())
 }
@@ -91,13 +103,15 @@ fn execute_review(
     trans: &Transaction,
     req: &ReviewReq,
     submit_user_id: i64,
-) -> Result<(), routes::Error> {
+) -> Result<ReviewResult, routes::Error> {
     let sid = req.sid;
 
-    match &req.action {
+    let res = match &req.action {
         ReviewAction::Reject => {
             sql::ins_submit_reject(trans, sid)
                 .context("ins_submit_reject")?;
+
+            ReviewResult::Reject
         }
         ReviewAction::Pass(groups) => {
             let last_pass_sid =
@@ -122,7 +136,7 @@ fn execute_review(
                 .context("ins_submit_pass_group")?;
             }
 
-            if let Some(last_pass_sid) = last_pass_sid {
+            let ignored = if let Some(last_pass_sid) = last_pass_sid {
                 let last_pass_groups =
                     Group::get_passed_groups_by_submit_id(
                         trans,
@@ -164,14 +178,23 @@ missing old group({old:?}) and have new group({new:?})"
                     );
                     sql::ins_submit_replace(trans, last_pass_sid)
                         .context("ins_submit_replace last")?;
+                    false
                 } else {
                     tracing::debug!("ignore current one: (sid){sid}");
                     sql::ins_submit_replace(trans, sid)
                         .context("ins_submit_replace current")?;
+                    true
                 }
+            } else {
+                false
+            };
+
+            ReviewResult::Pass {
+                groups: groups.clone(),
+                ignored,
             }
         }
-    }
+    };
 
-    Ok(())
+    Ok(res)
 }

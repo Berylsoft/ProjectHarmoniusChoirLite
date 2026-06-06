@@ -8,7 +8,7 @@ use std::{
 };
 
 use axum::{http::header, response::IntoResponse};
-use futures_core::future::BoxFuture;
+use futures::future::BoxFuture;
 use time::UtcDateTime;
 use tokio_util::io::ReaderStream;
 
@@ -81,7 +81,7 @@ enum State {
     End,
 }
 
-impl futures_core::Stream for ArchiveStream {
+impl futures::Stream for ArchiveStream {
     type Item = io::Result<Box<[u8]>>;
 
     fn poll_next(

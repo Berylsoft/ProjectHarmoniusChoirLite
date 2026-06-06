@@ -15,8 +15,8 @@ use ed25519_dalek::{
     },
 };
 use review_sys::{
-    ServerConfig, ServerState,
-    routes::routes,
+    Config, ServerState, State,
+    routes::{notify, routes},
     sql::db_open,
     utils::{init_env, shutdown_signal, var_opt},
 };
@@ -76,20 +76,25 @@ async fn run() -> anyhow::Result<()> {
     tracing::info!("listening on {addr}");
 
     let state = ServerState {
-        cfg: ServerConfig {
-            db_path: PathBuf::from(db_path).into_boxed_path(),
-            key,
-            bot_key,
-            redir_prefix: redir_prefix.into_boxed_str(),
+        inner: State {
+            cfg: Config {
+                db_path: PathBuf::from(db_path).into_boxed_path(),
+                key,
+                bot_key,
+                redir_prefix: redir_prefix.into_boxed_str(),
+            },
+            notify: notify::State::default(),
         }
         .into(),
     };
-    let app = routes(state);
+    let app = routes(state.clone());
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
         .context("axum::serve")?;
+
+    state.inner.notify.stop_and_wait().await;
 
     Ok(())
 }

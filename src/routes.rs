@@ -15,8 +15,10 @@ use tower_http::{
 use crate::{ServerState, utils::MakeRequestUlid};
 
 pub mod auth;
+pub mod bot;
 pub mod file;
 pub mod manager;
+pub mod notify;
 pub mod user;
 
 pub type Payload<T> = axum::extract::Json<T>;
@@ -30,6 +32,7 @@ pub fn routes(state: ServerState) -> Router {
         .nest("/auth", auth::routes())
         .nest("/user", user::routes())
         .nest("/manager", manager::routes())
+        .nest("/notify", notify::routes())
         .layer((
             SetRequestIdLayer::x_request_id(MakeRequestUlid),
             PropagateRequestIdLayer::x_request_id(),

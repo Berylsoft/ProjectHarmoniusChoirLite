@@ -143,6 +143,12 @@ from submits_info_with_marking s
 where user_id = ?
 order by id desc;
 
+-- name: get_user_thirdparty_id_by_submit_id :one
+select u.thirdparty_id
+from submits s
+join users u on u.id = s.user_id
+where s.id = ?;
+
 -- name: get_file_info_by_submit_id :one
 select *
 from submits_file_info_with_marking s
