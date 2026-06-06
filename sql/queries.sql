@@ -22,23 +22,15 @@ returning token_id;
 
 -- name: get_pending_submit_by_user_id :one
 select s.id, s.nth
-from submits s
-where s.user_id = ? and
-  not exists (
-    select 1
-    from submit_rejects sr
-    where sr.submit_id = s.id
-  ) and
-  not exists (
-    select 1
-    from submit_passes sp
-    where sp.submit_id = s.id
-  ) and
-  not exists (
-    select 1
-    from submit_replaces srep
-    where srep.submit_id = s.id
-  );
+from submits_info_with_marking s
+where s.user_id = ? and not (rejected or passed or replaced);
+
+-- name: get_latest_n_submits_for_limit_by_user_id :many
+select s.rejected, s.passed
+from submits_info_with_marking s
+where s.user_id = ?
+order by s.id desc
+limit ?;
 
 -- name: get_max_submit_nth_by_user_id :one
 select cast(coalesce(max(nth), 0) as integer) as "nth"

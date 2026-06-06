@@ -44,6 +44,8 @@ pub async fn handler(
         submit.replaced,
     )?;
 
+    trans.commit().await?;
+
     let mut replaced = matches!(status, Status::Replaced);
     let readonly = !matches!(status, Status::Pending);
 

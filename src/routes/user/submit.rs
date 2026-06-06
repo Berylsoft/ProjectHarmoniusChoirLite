@@ -31,15 +31,35 @@ use crate::{
 
 pub const SIZE_RANGE: RangeInclusive<usize> =
     1_000_000..=100_000_000_usize;
+pub const MAX_PENDING: i64 = 5;
 
 #[derive(Debug)]
 pub struct SubmitReq {
+    file: Option<NamedTempFile<tokio::fs::File>>,
     signature: String,
     /// `harmony_group_intention`
     hgi: bool,
     mime: Mime,
     hash: blake3::Hash,
     file_name: String,
+}
+
+impl SubmitReq {
+    fn move_to_storage(&mut self) -> anyhow::Result<()> {
+        let path = hash_to_storage_path(self.hash);
+        let parent =
+            path.parent().context("get parent of storage path")?;
+        if !parent.exists() {
+            fs::create_dir_all(parent).context("create parent dir")?;
+        }
+
+        self.file
+            .take()
+            .context("expect havent' been moved")?
+            .persist(path)
+            .context("persist file into storage")?;
+        Ok(())
+    }
 }
 
 #[expect(clippy::missing_errors_doc)]
@@ -50,12 +70,33 @@ pub async fn handler(
     multipart: Multipart,
 ) -> routes::Result<impl IntoResponse> {
     tracing::debug!("handling submit by (uid){}", token.uid());
-    let req = receive_into_storage(multipart, &redir_prefix).await?;
 
-    // TODO: limit submit count?
-    // TODO: dedup?
+    let mut req = receive_into_tmp(multipart, &redir_prefix).await?;
 
     let trans = trans.begin().await?;
+
+    let latest_n = sql::get_latest_n_submits_for_limit_by_user_id(
+        &trans,
+        token.uid(),
+        MAX_PENDING,
+    )
+    .context("get_latest_n_submits_for_limit_by_user_id")?;
+
+    let max_pending_reached = latest_n.len()
+        == usize::try_from(MAX_PENDING)
+            .context("MAX_PENDING to usize")?
+        && latest_n.iter().all(|it| !it.rejected && !it.passed);
+
+    if max_pending_reached {
+        trans.commit().await?;
+
+        return res_see_other_err_res(
+            &redir_prefix,
+            "/user/error/max_pending",
+        );
+    }
+
+    req.move_to_storage().context("move_to_storage")?;
 
     let pending = sql::get_pending_submit_by_user_id(&trans, token.uid())
         .context("get_pending_submit_by_user_id")?;
@@ -99,8 +140,7 @@ pub async fn handler(
     Ok(res_see_other(&redir_prefix, "/user/submits"))
 }
 
-#[expect(clippy::too_many_lines)]
-async fn receive_into_storage(
+async fn receive_into_tmp(
     mut multipart: Multipart,
     redir_prefix: &RedirPrefix,
 ) -> Result<SubmitReq, routes::Error> {
@@ -167,12 +207,7 @@ async fn receive_into_storage(
     match res {
         Ok(()) => {}
         Err(err @ routes::Error::Problem(_)) => {
-            while multipart
-                .next_field()
-                .await
-                .map_err(map_multipart_err)?
-                .is_some()
-            {}
+            drain_multipart(multipart).await?;
             return Err(err);
         }
         Err(err) => return Err(err),
@@ -193,13 +228,6 @@ async fn receive_into_storage(
     let (file, mime, hasher, file_name) = file;
     let hash = hasher.finalize();
 
-    let path = hash_to_storage_path(hash);
-    let parent = path.parent().context("get parent of storage path")?;
-    if !parent.exists() {
-        fs::create_dir_all(parent).context("create parent dir")?;
-    }
-    file.persist(path).context("persist file into storage")?;
-
     tracing::debug!(
         "user signature={signature:?}, hgi={hgi}, file size={}, hash={}",
         hasher.count(),
@@ -207,6 +235,7 @@ async fn receive_into_storage(
     );
 
     Ok(SubmitReq {
+        file: Some(file),
         signature,
         hgi,
         mime,
@@ -411,6 +440,17 @@ async fn receive_with_limit(
 
 async fn drain_field(field: &mut Field<'_>) -> routes::Result<()> {
     while field.chunk().await.map_err(map_multipart_err)?.is_some() {}
+    Ok(())
+}
+
+async fn drain_multipart(mut multipart: Multipart) -> routes::Result<()> {
+    while multipart
+        .next_field()
+        .await
+        .map_err(map_multipart_err)?
+        .is_some()
+    {}
+
     Ok(())
 }
 

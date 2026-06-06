@@ -74,6 +74,8 @@ pub async fn handler(
         });
     }
 
+    trans.commit().await?;
+
     let enabled_filters = filter_mask
         .into_iter()
         .enumerate()

@@ -48,7 +48,7 @@ pub async fn handler(
             LoginToken {
                 id: params.token,
                 is_manager: params.is_manager,
-                expires: OffsetDateTime::UNIX_EPOCH,
+                created_at: OffsetDateTime::UNIX_EPOCH,
             }
         }
         #[cfg(not(feature = "mock_bot_token"))]
