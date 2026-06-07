@@ -43,12 +43,19 @@ pub async fn handler(
 
     trans.commit().await?;
 
-    Ok(Html(ViewTemplate { items: &items }.render()?))
+    Ok(Html(
+        ViewTemplate {
+            is_manager: token.is_manager(),
+            items: &items,
+        }
+        .render()?,
+    ))
 }
 
 #[derive(Debug, askama::Template)]
 #[template(path = "user/submits.html")]
 struct ViewTemplate<'a> {
+    is_manager: bool,
     items: &'a [Item<'a>],
 }
 
