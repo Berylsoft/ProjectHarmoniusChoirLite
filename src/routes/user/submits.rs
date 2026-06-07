@@ -35,7 +35,7 @@ pub async fn handler(
             id: submit.id,
             nth: submit.nth,
             hgi: submit.harmony_group_intention,
-            signature: &submit.user_signature,
+            signature: submit.passed.then_some(&submit.user_signature),
             created_at: &submit.created_at,
             status,
         });
@@ -56,7 +56,7 @@ struct ViewTemplate<'a> {
 struct Item<'a> {
     id: i64,
     nth: i64,
-    signature: &'a str,
+    signature: Option<&'a str>,
     hgi: bool,
     created_at: &'a str,
     status: Status,
