@@ -27,8 +27,10 @@
   --30unit: calc(var(--1unit) * 30);
   --40unit: calc(var(--1unit) * 40);
   --80unit: calc(var(--1unit) * 80);
+  --100unit: calc(var(--1unit) * 100);
   --200unit: calc(var(--1unit) * 200);
   --250unit: calc(var(--1unit) * 250);
+  --300unit: calc(var(--1unit) * 300);
   --400unit: calc(var(--1unit) * 400);
   --420unit: calc(var(--1unit) * 420);
   --500unit: calc(var(--1unit) * 500);

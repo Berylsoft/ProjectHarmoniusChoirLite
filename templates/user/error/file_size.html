@@ -1,0 +1,13 @@
+{% extends "err_base.html" %}
+
+{% block title -%}
+  不支持的文件大小
+{%- endblock %}
+
+{% block content %}
+  <div class="error">
+    不支持的文件大小,
+    请选择大小在 {{ size_min | filesizeformat }} 和
+    {{ size_max | filesizeformat }} 之间的文件
+  </div>
+{% endblock %}

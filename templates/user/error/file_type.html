@@ -1,0 +1,14 @@
+{% extends "err_base.html" %}
+
+{% block title -%}
+  不支持的文件类型
+{%- endblock %}
+
+{% block content %}
+  <div class="error">
+    不支持的文件类型, 请使用:
+    {%- for ft in file_types -%}
+      <br/>{{ ft }}
+    {%- endfor -%}
+  </div>
+{% endblock %}

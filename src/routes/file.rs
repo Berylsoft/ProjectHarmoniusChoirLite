@@ -5,7 +5,7 @@ use time::OffsetDateTime;
 
 use crate::{routes, sql};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::EnumIter)]
 pub enum Type {
     Wav,
     Flac,
