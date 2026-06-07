@@ -101,3 +101,46 @@ impl Status {
         })
     }
 }
+
+#[expect(clippy::struct_excessive_bools)]
+#[derive(Debug)]
+pub struct StatusFlat {
+    pub pending: bool,
+    pub rejected: bool,
+    pub replaced: bool,
+    pub passed: bool,
+    pub lead: bool,
+    pub harmony: bool,
+}
+
+impl From<Status> for StatusFlat {
+    fn from(value: Status) -> Self {
+        let pending = matches!(value, Status::Pending);
+        let rejected = matches!(value, Status::Rejected);
+
+        let mut replaced = matches!(value, Status::Replaced);
+        let (passed, lead, harmony) = if let Status::Passed {
+            groups,
+            replaced: r,
+        } = &value
+        {
+            replaced |= *r;
+            (
+                true,
+                groups.contains(&Group::Lead),
+                groups.contains(&Group::Harmony),
+            )
+        } else {
+            Default::default()
+        };
+
+        Self {
+            pending,
+            rejected,
+            replaced,
+            passed,
+            lead,
+            harmony,
+        }
+    }
+}

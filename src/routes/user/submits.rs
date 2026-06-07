@@ -8,8 +8,9 @@ use crate::{
         self,
         auth::access_token::{self, AccessToken},
     },
-    shared::Status,
+    shared::{Status, StatusFlat},
     sql,
+    utils::reformat_time_cn,
 };
 
 #[expect(clippy::missing_errors_doc)]
@@ -36,8 +37,9 @@ pub async fn handler(
             nth: submit.nth,
             hgi: submit.harmony_group_intention,
             signature: submit.passed.then_some(&submit.user_signature),
-            created_at: &submit.created_at,
-            status,
+            created_at: reformat_time_cn(&submit.created_at)
+                .context("reformat_time_cn")?,
+            status: status.into(),
         });
     }
 
@@ -45,6 +47,7 @@ pub async fn handler(
 
     Ok(Html(
         ViewTemplate {
+            uid: token.uid(),
             is_manager: token.is_manager(),
             items: &items,
         }
@@ -55,6 +58,7 @@ pub async fn handler(
 #[derive(Debug, askama::Template)]
 #[template(path = "user/submits.html")]
 struct ViewTemplate<'a> {
+    uid: i64,
     is_manager: bool,
     items: &'a [Item<'a>],
 }
@@ -65,6 +69,6 @@ struct Item<'a> {
     nth: i64,
     signature: Option<&'a str>,
     hgi: bool,
-    created_at: &'a str,
-    status: Status,
+    created_at: Box<str>,
+    status: StatusFlat,
 }

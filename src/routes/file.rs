@@ -3,7 +3,7 @@ use mime::Mime;
 use rusqlite::Connection;
 use time::OffsetDateTime;
 
-use crate::{routes, sql};
+use crate::{routes, sql, utils::parse_rfc3339};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::EnumIter)]
 pub enum Type {
@@ -114,11 +114,8 @@ impl Info {
                 &info.file_mime_type.parse().context("parse mime")?,
             )
             .context("type from mime")?,
-            created_at: OffsetDateTime::parse(
-                &info.created_at,
-                &time::format_description::well_known::Rfc3339,
-            )
-            .context("parse created_at")?,
+            created_at: parse_rfc3339(&info.created_at)
+                .context("parse created_at")?,
         }))
     }
 
@@ -144,11 +141,8 @@ impl Info {
                             .context("parse mime")?,
                     )
                     .context("type from mime")?,
-                    created_at: OffsetDateTime::parse(
-                        &info.created_at,
-                        &time::format_description::well_known::Rfc3339,
-                    )
-                    .context("parse created_at")?,
+                    created_at: parse_rfc3339(&info.created_at)
+                        .context("parse created_at")?,
                 })
             })
             .collect::<Result<Box<[_]>, _>>()

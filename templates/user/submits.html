@@ -4,16 +4,80 @@
   {{ items.len() }} 个已提交的试音
 {%- endblock %}
 
+{% block head -%}
+  {% include "buttonInclude.html" %}
+  <link href="/static/pages/user/submits.css" rel="stylesheet" />
+{%- endblock %}
+
 {% block content %}
-  <div>
-    <a href="/user/submit">提交试音</a>
-    {% if is_manager -%}
-      <span> </span>
-      <a href="/manager/submits">审核试音</a>
-    {%- endif %}
+  <div id="header">
+    <div>
+      UID: {{ uid }}
+    </div>
+    <div>
+      <button id="newSubmit" class="button theme">提交</button>
+      <script>newSubmit.onclick = () => location = "/user/submit";</script>
+      {% if is_manager -%}
+        <span> </span>
+        <button id="manage" class="button">审核</button>
+        <script>manage.onclick = () => location = "/manager/submits"</script>
+      {%- endif %}
+    </div>
   </div>
-  {% for item in items %}
-    {{ format!("{item:?}") }}
-    <br/>
+  {% for it in items %}
+    <div class="item">
+      <div>
+        <div>
+          第{{ it.nth }}次<span class="txtSec">#{{ it.id }}</span>
+        </div>
+        <div class="txtSec">
+          {{ it.created_at }}
+        </div>
+      </div>
+      <div>
+        <div>
+          {% if it.hgi -%}
+            有
+          {%- else -%}
+            无
+          {%- endif -%}
+          <span class="txtSec">和声组意向</span>
+        </div>
+        {% match it.signature %}
+          {%- when Some(signature) -%}
+            <div>
+              {{ signature }}
+            </div>
+          {%- when None -%}
+            <div class="txtSec">
+              [署名待审核]
+            </div>
+        {%- endmatch %}
+      </div>
+      <div>
+        <div>
+          {% if it.status.pending -%}
+            待审核
+          {%- elif it.status.rejected -%}
+            <span class="txtErr">未通过</span>
+          {%- elif it.status.replaced && !it.status.passed -%}
+            被替代
+          {%- elif it.status.passed -%}
+            {% if it.status.replaced -%}
+              通过 (被替代)
+            {%- else -%}
+              <span class="txtOk">通过</span>
+            {%- endif %}
+          {%- endif %}
+        </div>
+        {% if it.status.passed -%}
+          <div>
+            <span>合唱</span>
+            <span {% if !it.status.lead -%} class="txtSec" {% endif %}>领唱</span>
+            <span {% if !it.status.harmony -%} class="txtSec" {% endif %}>和声</span>
+          </div>
+        {%- endif %}
+      </div>
+    </div>
   {% endfor %}
 {% endblock %}

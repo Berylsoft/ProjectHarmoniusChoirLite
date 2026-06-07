@@ -13,7 +13,7 @@ use crate::{
         self,
         auth::access_token::{self, AccessToken},
     },
-    shared::{Group, Status},
+    shared::{Status, StatusFlat},
     sql,
     utils::warn_problem_general,
 };
@@ -46,24 +46,9 @@ pub async fn handler(
 
     trans.commit().await?;
 
-    let mut replaced = matches!(status, Status::Replaced);
-    let readonly = !matches!(status, Status::Pending);
-
-    let rejected = matches!(status, Status::Rejected) || !readonly;
-    let (passed, lead, harmony) = if let Status::Passed {
-        groups,
-        replaced: r,
-    } = &status
-    {
-        replaced |= *r;
-        (
-            true,
-            groups.contains(&Group::Lead),
-            groups.contains(&Group::Harmony),
-        )
-    } else {
-        Default::default()
-    };
+    let mut status = StatusFlat::from(status);
+    status.rejected |= status.pending;
+    let readonly = !status.pending;
 
     Ok(Html(
         ViewTemplate {
@@ -73,20 +58,14 @@ pub async fn handler(
             signature: &submit.user_signature,
             hgi: submit.harmony_group_intention,
             created_at: &submit.created_at,
-            // statuse
-            replaced,
+            status,
             readonly,
-            passed,
-            lead,
-            harmony,
-            rejected,
             thirdparty_id: &submit.thirdparty_id,
         }
         .render()?,
     ))
 }
 
-#[expect(clippy::struct_excessive_bools)]
 #[derive(Debug, Template)]
 #[template(path = "manager/submit_detail.html")]
 struct ViewTemplate<'a> {
@@ -96,12 +75,7 @@ struct ViewTemplate<'a> {
     signature: &'a str,
     hgi: bool,
     created_at: &'a str,
-    // status
-    replaced: bool,
+    status: StatusFlat,
     readonly: bool,
-    passed: bool,
-    lead: bool,
-    harmony: bool,
-    rejected: bool,
     thirdparty_id: &'a str,
 }

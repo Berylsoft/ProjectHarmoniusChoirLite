@@ -5,10 +5,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::Context;
 use axum::{
     http::{StatusCode, header},
     response::IntoResponse as _,
 };
+use time::OffsetDateTime;
 use tower_http::request_id::{MakeRequestId, RequestId};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
@@ -206,4 +208,32 @@ pub fn length_check_quick(s: &str, limit: usize) -> bool {
     }
 
     true
+}
+
+#[expect(clippy::missing_errors_doc)]
+pub fn parse_rfc3339(
+    t: &str,
+) -> Result<OffsetDateTime, time::error::Parse> {
+    OffsetDateTime::parse(
+        t,
+        &time::format_description::well_known::Rfc3339,
+    )
+}
+
+#[expect(clippy::missing_errors_doc)]
+pub fn format_time_cn(t: OffsetDateTime) -> anyhow::Result<Box<str>> {
+    let t = t.to_offset(time::macros::offset!(+8));
+    t.format(time::macros::format_description!(
+        "[year]-[month]-[day] \
+[hour repr:24]:[minute]:[second] \
+[offset_hour sign:mandatory]"
+    ))
+    .context("format time")
+    .map(String::into_boxed_str)
+}
+
+#[expect(clippy::missing_errors_doc)]
+pub fn reformat_time_cn(t: &str) -> anyhow::Result<Box<str>> {
+    let t = parse_rfc3339(t).context("parse_rfc3339")?;
+    format_time_cn(t)
 }

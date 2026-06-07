@@ -20,27 +20,27 @@
   <div>署名: {{ signature }}</div>
   <div>和声组意向: {% if hgi %} 有 {% else %} 无 {% endif %}</div>
   <div>提交时间: {{ created_at }}</div>
-  {% if !replaced || (replaced && passed) -%}
+  {% if !status.replaced || (status.replaced && status.passed) -%}
     <div>
       <comp-selector id="selPass"
         {% if readonly -%} readonly {%- endif %}>
         <button style="--color: var(--txtErr)"
-          {{ sel::selected(rejected) }}>
+          {{ sel::selected(status.rejected) }}>
           拒绝
         </button>
         <button style="--color: var(--txtOk)"
-          {{ sel::selected(passed) }}>
+          {{ sel::selected(status.passed) }}>
           通过
         </button>
       </comp-selector>
     </div>
     <div id="selGroupContainer"
-      {% if !passed -%} style="display: none;" {%- endif %}>
+      {% if !status.passed -%} style="display: none;" {%- endif %}>
       <comp-selector id="selGroup"
         {% if readonly -%} readonly {%- endif %} multi>
         <button data-selected>合唱</button>
-        <button {{ sel::selected(lead) }}>领唱</button>
-        <button {{ sel::selected(harmony) }}>和声</button>
+        <button {{ sel::selected(status.lead) }}>领唱</button>
+        <button {{ sel::selected(status.harmony) }}>和声</button>
       </comp-selector>
     </div>
     {% if !readonly -%}
@@ -48,12 +48,12 @@
         <button id="submit" class="button theme">提交</button>
       </div>
       <script type="module">
-        import { init } from "/static/js/submitDetail.js";
+        import { init } from "/static/pages/manager/submitDetail.js";
         init({{ id }}, selPass, selGroup, submit);
       </script>
     {%- endif %}
   {%- endif %}
-  {% if replaced -%}
+  {% if status.replaced -%}
     <div>
       <comp-selector readonly>
         <button data-selected>被替代</button>

@@ -1,0 +1,48 @@
+:root {
+  display: flex;
+  justify-content: center;
+}
+
+body {
+  width: min(100%, var(--400unit));
+  padding: var(--10unit);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--10unit);
+}
+
+body > div {
+  background-color: var(--bgLight);
+  padding: var(--10unit);
+  border-radius: var(--5unit);
+  box-sizing: border-box;
+}
+
+#header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#header > div:last-child {
+  display: flex;
+  gap: var(--5unit);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--5unit);
+}
+
+.item > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item > div:nth-child(2) > div:first-child {
+  display: flex;
+  gap: var(--2unit);
+}
