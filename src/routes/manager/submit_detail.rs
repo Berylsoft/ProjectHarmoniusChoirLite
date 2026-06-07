@@ -24,8 +24,8 @@ pub async fn handler(
     extract::Path(sid): extract::Path<i64>,
     trans: Transaction,
 ) -> routes::Result<impl IntoResponse> {
-    let submit =
-        sql::get_submit_by_id(&trans, sid).context("get_submit_by_id")?;
+    let submit = sql::get_submit_with_thirdparty_id_by_id(&trans, sid)
+        .context("get_submit_by_id")?;
 
     let Some(submit) = submit else {
         warn_problem_general("submit not found");
@@ -80,6 +80,7 @@ pub async fn handler(
             lead,
             harmony,
             rejected,
+            thirdparty_id: &submit.thirdparty_id,
         }
         .render()?,
     ))
@@ -102,4 +103,5 @@ struct ViewTemplate<'a> {
     lead: bool,
     harmony: bool,
     rejected: bool,
+    thirdparty_id: &'a str,
 }

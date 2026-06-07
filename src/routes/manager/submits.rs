@@ -37,8 +37,8 @@ pub async fn handler(
     Query(filter): Query<Filter>,
     trans: Transaction,
 ) -> routes::Result<impl IntoResponse> {
-    let submits =
-        sql::get_all_submits(&trans).context("get_all_submits")?;
+    let submits = sql::get_all_submits_with_thirdparty_id(&trans)
+        .context("get_all_submits_with_thirdparty_id")?;
 
     let mut items = Vec::with_capacity(submits.len());
 
@@ -71,6 +71,7 @@ pub async fn handler(
             signature: &submit.user_signature,
             created_at: &submit.created_at,
             status,
+            thirdparty_id: &submit.thirdparty_id,
         });
     }
 
@@ -115,4 +116,5 @@ struct Item<'a> {
     hgi: bool,
     created_at: &'a str,
     status: Status,
+    thirdparty_id: &'a str,
 }

@@ -57,13 +57,13 @@
     </script>
   </div>
   <div>
-    {% for item in items %}
+    {% for it in items %}
       <div>
-        <a href="./submits/{{ item.id }}">#{{ item.id }}</a>,
-        UID: {{ item.user_id }}, 第 {{ item.nth }} 次试音,
-        署名: {{ item.signature }},
-        和声组意向: {% if item.hgi -%} 有 {%- else -%} 无 {%- endif %},
-        创建于: {{ item.created_at }}, 状态: {{ format!("{:?}", item.status) }}
+        <a href="./submits/{{ it.id }}">#{{ it.id }}</a>,
+        UID: {{ it.user_id }}, BID: {{ it.thirdparty_id }}, 第 {{ it.nth }} 次试音,
+        署名: {{ it.signature }},
+        和声组意向: {% if it.hgi -%} 有 {%- else -%} 无 {%- endif %},
+        创建于: {{ it.created_at }}, 状态: {{ format!("{:?}", it.status) }}
       </div>
     {% endfor %}
   </div>

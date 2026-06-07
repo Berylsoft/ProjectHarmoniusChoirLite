@@ -97,15 +97,17 @@ from submit_passes sp
 join submit_pass_groups spg on spg.pass_id = sp.id
 where sp.submit_id = ?;
 
--- name: get_all_submits :many
-select *
-from submits_info_with_marking 
-order by id desc;
+-- name: get_all_submits_with_thirdparty_id :many
+select s.*, u.thirdparty_id
+from submits_info_with_marking s
+join users u on u.id = s.user_id
+order by s.id desc;
 
--- name: get_submit_by_id :one
-select *
-from submits_info_with_marking 
-where id = ?;
+-- name: get_submit_with_thirdparty_id_by_id :one
+select s.*, u.thirdparty_id
+from submits_info_with_marking s
+join users u on u.id = s.user_id
+where s.id = ?;
 
 -- name: get_previous_submit_signature_by_user_id :one
 select user_signature
