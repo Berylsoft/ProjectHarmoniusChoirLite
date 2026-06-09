@@ -48,7 +48,9 @@
         <button id="submit" class="button theme">提交</button>
       </div>
       <script type="module">
-        import { init } from "/static/pages/manager/submitDetail.js";
+        import { init } from "/static/pages/manager/submitDetail.js\
+?h={{ env!("AH_PAGES_MANAGER_SUBMIT_DETAIL_JS") }}";
+
         init({{ id }}, selPass, selGroup, submit);
       </script>
     {%- endif %}

@@ -1,6 +1,6 @@
 use std::{
-    env, fs,
-    path::{Path, PathBuf},
+    env, fs, io,
+    path::{self, Path, PathBuf},
     process::{Command, ExitCode},
     str::FromStr,
 };
@@ -50,8 +50,90 @@ fn copy_rec(
     Ok(())
 }
 
+fn gen_hash_for_file(path: &Path, name: &str) -> anyhow::Result<()> {
+    let mut file = fs::OpenOptions::new()
+        .read(true)
+        .open(path)
+        .context("open")?;
+    let mut hasher = blake3::Hasher::new();
+    io::copy(&mut file, &mut hasher).context("copy to hash")?;
+    let hash = hasher.finalize();
+    let hash = hash.to_hex();
+    println!("cargo::rustc-env=AH_{name}={hash}");
+
+    Ok(())
+}
+
+fn collect_hash_entry_rec(
+    root: &Path,
+    suffix: &Path,
+) -> anyhow::Result<()> {
+    let path = root.join(suffix);
+
+    for entry in fs::read_dir(path).context("read_dir")? {
+        let entry = entry.context("entry")?;
+        let ft = entry.file_type().context("file_type")?;
+        let suffix = suffix.join(entry.file_name());
+        if ft.is_dir() {
+            collect_hash_entry_rec(root, &suffix)
+                .context("gen_hash_rec")?;
+        } else if ft.is_file() {
+            let name = suffix
+                .components()
+                .map(|it| match it {
+                    path::Component::Prefix(_)
+                    | path::Component::RootDir
+                    | path::Component::CurDir
+                    | path::Component::ParentDir => unreachable!(),
+                    path::Component::Normal(os_str) => {
+                        os_str.to_str().expect("utf8")
+                    }
+                })
+                .fold(String::new(), |mut acc, it| {
+                    if !acc.is_empty() {
+                        acc.push('_');
+                    }
+
+                    for (idx, ch) in it.char_indices() {
+                        if matches!(ch, '.') {
+                            acc.push('_');
+                            continue;
+                        }
+
+                        if ch.is_ascii_uppercase()
+                            && idx != 0
+                            && it.as_bytes()[idx - 1] != b'_'
+                        {
+                            acc.push('_');
+                        }
+
+                        acc.push(ch.to_ascii_uppercase());
+                    }
+
+                    acc
+                });
+
+            gen_hash_for_file(&entry.path(), &name)
+                .context("gen_hash_for_file")?;
+        } else {
+            unreachable!()
+        }
+    }
+
+    Ok(())
+}
+
 fn main() -> ExitCode {
     println!("cargo::rerun-if-changed=sql/");
+
+    println!("cargo::rerun-if-changed=static/");
+    collect_hash_entry_rec(Path::new("./static"), Path::new("")).unwrap();
+
+    if env::var("CARGO_FEATURE_DEV_AUTO_RELOAD").is_ok() {
+        println!("cargo::rustc-env=AUTO_RELOAD=true");
+    } else {
+        println!("cargo::rustc-env=AUTO_RELOAD=false");
+    }
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let out_dir = PathBuf::from_str(&out_dir).unwrap();

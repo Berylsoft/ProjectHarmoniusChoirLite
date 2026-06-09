@@ -45,6 +45,10 @@ pub async fn handler(
     let token = {
         #[cfg(feature = "mock_bot_token")]
         {
+            let _ = (
+                validate_bot_token::<LoginToken, fn(&LoginToken) -> bool>,
+                &bot_key,
+            );
             LoginToken {
                 id: params.token,
                 is_manager: params.is_manager,

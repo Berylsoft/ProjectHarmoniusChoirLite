@@ -1,5 +1,5 @@
-<link href="/static/components/selector.css" rel="stylesheet" />
-<script src="/static/components/selector.js" type="module"></script>
+<link href="/static/components/selector.css?h={{ env!("AH_COMPONENTS_SELECTOR_CSS") }}" rel="stylesheet" />
+<script src="/static/components/selector.js?h={{ env!("AH_COMPONENTS_SELECTOR_JS") }}" type="module"></script>
 {% macro selected(selected) %}
   {% if selected %} data-selected {% endif %}
 {% endmacro %}

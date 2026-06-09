@@ -1,5 +1,5 @@
 {% extends "base.html" %}
 
 {% block head -%}
-  <link href="/static/pages/user/error/err_base.css" rel="stylesheet" />
+  <link href="/static/pages/user/error/err_base.css?h={{ env!("AH_PAGES_USER_ERROR_ERR_BASE_CSS") }}" rel="stylesheet" />
 {%- endblock %}

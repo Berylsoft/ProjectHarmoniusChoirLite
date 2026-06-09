@@ -84,7 +84,13 @@ async fn static_file(
         });
 
     Ok((
-        [(header::CONTENT_TYPE, content_type.to_string())],
+        [
+            (header::CONTENT_TYPE, content_type.to_string()),
+            (
+                header::CACHE_CONTROL,
+                "max-age=3600, stale-while-revalidate=31536000, immutable".to_owned(),
+            ),
+        ],
         file.contents(),
     ))
 }

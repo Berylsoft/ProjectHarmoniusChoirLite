@@ -7,7 +7,7 @@
 {% block head -%}
   {% include "buttonInclude.html" %}
   {% include "selectorInclude.html" %}
-  <link href="/static/pages/user/submit.css" rel="stylesheet" />
+  <link href="/static/pages/user/submit.css?h={{ env!("AH_PAGES_USER_SUBMIT_CSS") }}" rel="stylesheet" />
 {%- endblock %}
 
 {% block content %}

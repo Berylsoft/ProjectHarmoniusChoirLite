@@ -6,16 +6,16 @@
 
     <title>{% block title %} Title {% endblock %}</title>
 
-    <link rel="icon" href="/favicon.webp" />
-    <link href="/static/css/normalize.min.css" rel="stylesheet" />
-    <link href="/static/css/style.css" rel="stylesheet" />
+    <link rel="icon" href="/favicon.webp?h={{ env!("AH_FAVICON_WEBP") }}" />
+    <link href="/static/css/normalize.min.css?h={{ env!("AH_CSS_NORMALIZE_MIN_CSS") }}" rel="stylesheet" />
+    <link href="/static/css/style.css?h={{ env!("AH_CSS_STYLE_CSS") }}" rel="stylesheet" />
     <meta name="color-scheme" content="dark" />
 
     {% block head %}{% endblock %}
   </head>
   <body>
     {% block content %}{% endblock %}
-    {% if true %}
+    {% if env!("AUTO_RELOAD").parse::<bool>().unwrap_or_default() %}
     <script type="module">
       let toReload = false;
 

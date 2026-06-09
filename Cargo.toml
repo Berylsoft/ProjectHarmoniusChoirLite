@@ -57,10 +57,12 @@ ulid = "1.2.1"
 
 [build-dependencies]
 anyhow = { version = "1.0.102", features = ["backtrace"] }
+blake3 = "1.8.5"
 
 [features]
 mock_bot_token = []
 mock_token = []
+dev_auto_reload = []
 
 [lints.rust]
 unsafe_code = "forbid"
