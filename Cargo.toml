@@ -2,6 +2,8 @@
 name = "harmonius_choir_lite"
 version = "0.1.0"
 edition = "2024"
+authors = ["Golden_Water"]
+license = "MPL-2.0"
 
 [dependencies]
 anyhow = { version = "1.0.102", features = ["backtrace"] }
