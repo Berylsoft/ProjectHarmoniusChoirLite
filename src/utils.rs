@@ -13,20 +13,64 @@ use axum::{
 use time::OffsetDateTime;
 use tower_http::request_id::{MakeRequestId, RequestId};
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::EnvFilter;
+use tracing_appender::{non_blocking, rolling::Rotation};
+use tracing_subscriber::{
+    EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt,
+};
 use ulid::Ulid;
 
 use crate::{RedirPrefix, routes};
 
-pub fn init_env() {
+#[expect(clippy::missing_errors_doc)]
+pub fn init_env() -> anyhow::Result<LogGuard> {
     dotenvy::dotenv().ok();
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::builder()
-                .with_default_directive(LevelFilter::INFO.into())
-                .from_env_lossy(),
-        )
+
+    let filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env_lossy();
+
+    let (stdout_writer, stdout_writer_guard) =
+        non_blocking::NonBlockingBuilder::default()
+            .lossy(false)
+            .finish(std::io::stdout());
+
+    let stdout_layer = tracing_subscriber::fmt::Layer::new()
+        .with_writer(stdout_writer)
+        .with_filter(filter.clone());
+
+    let file_writer = tracing_appender::rolling::Builder::new()
+        .rotation(Rotation::HOURLY)
+        .filename_suffix("log")
+        .build("./logs")
+        .context("build rolling appender")?;
+    let (file_writer, file_writer_guard) =
+        non_blocking::NonBlockingBuilder::default()
+            .lossy(false)
+            .finish(file_writer);
+
+    let file_layer = tracing_subscriber::fmt::Layer::new()
+        .with_writer(file_writer)
+        .with_ansi(false)
+        .with_filter(filter);
+
+    // NOTE: order currently matters for ansi=false on span works,
+    // see also: https://github.com/tokio-rs/tracing/pull/3221
+    tracing_subscriber::registry()
+        .with(file_layer)
+        .with(stdout_layer)
         .init();
+
+    Ok(LogGuard {
+        file_writer_guard,
+        stdout_writer_guard,
+    })
+}
+
+#[expect(unused, reason = "for drop only")]
+#[derive(Debug)]
+pub struct LogGuard {
+    file_writer_guard: non_blocking::WorkerGuard,
+    stdout_writer_guard: non_blocking::WorkerGuard,
 }
 
 /// # Panics

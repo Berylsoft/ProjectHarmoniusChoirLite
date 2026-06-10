@@ -31,12 +31,17 @@ struct Args {
 }
 
 fn main() -> anyhow::Result<()> {
-    init_env();
-
     let args: Args = argh::from_env();
-    if let Some(path) = args.cwd {
-        tracing::info!("set current working directory to: {path:?}");
+    if let Some(path) = &args.cwd {
         std::env::set_current_dir(path).context("set_current_dir")?;
+    }
+
+    let log_guard = init_env().context("init_env")?;
+
+    if let Some(path) = args.cwd {
+        tracing::info!(
+            "current working directory has changed to: {path:?}"
+        );
     }
 
     tracing::info!("initialize database");
@@ -48,7 +53,11 @@ fn main() -> anyhow::Result<()> {
         .enable_all()
         .build()
         .unwrap()
-        .block_on(run())
+        .block_on(run())?;
+
+    drop(log_guard);
+
+    Ok(())
 }
 
 async fn run() -> anyhow::Result<()> {
