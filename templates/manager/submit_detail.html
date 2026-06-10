@@ -21,7 +21,7 @@
     <div>署名: {{ signature }}</div>
     <div>和声组意向: {% if hgi %} 有 {% else %} 无 {% endif %}</div>
     <div>提交时间: {{ created_at }}</div>
-    <div><audio controls src="./{{ id }}/file"></audio></div>
+    <div><audio controls preload="none" src="./{{ id }}/file"></audio></div>
     {% if !status.replaced || (status.replaced && status.passed) -%}
       <div>
         <comp-selector id="selPass"
