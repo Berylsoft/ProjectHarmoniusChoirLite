@@ -23,6 +23,9 @@ create table submits(
     unique(user_id, nth)
 ) strict;
 
+create index submits__user_id__id
+  on submits (user_id, id);
+
 create table submit_rejects(
     submit_id integer primary key
         references submits(id) on delete restrict
@@ -41,6 +44,9 @@ create table submit_pass_groups(
     group_name text not null,
     unique(pass_id, group_name)
 ) strict;
+
+create index submit_pass_groups__pass_id
+  on submit_pass_groups (pass_id);
 
 create table submit_replaces(
     submit_id integer primary key

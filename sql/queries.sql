@@ -78,18 +78,8 @@ where id = ?;
 -- name: get_last_passed_submit_id_by_user_id :one
 -- last passed and not replaced
 select s.id
-from submits s
-where s.user_id = ? and
-  exists (
-    select 1
-    from submit_passes sp
-    where sp.submit_id = s.id
-  ) and
-  not exists (
-    select 1
-    from submit_replaces srep
-    where srep.submit_id = s.id
-  );
+from submits_info_with_marking s
+where s.user_id = ? and s.passed and (not s.replaced);
 
 -- name: get_passed_groups_by_submit_id :many
 select spg.group_name
