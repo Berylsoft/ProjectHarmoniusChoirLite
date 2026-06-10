@@ -3,7 +3,7 @@ FROM golang:1.26.4-bookworm AS sqlc
 WORKDIR /work
 RUN git clone https://github.com/sqlc-dev/sqlc
 WORKDIR /work/sqlc/cmd/sqlc
-RUN git checkout a95e91d70ad9e1181253c333a1cfdd75ae4b95a5 
+RUN git checkout a95e91d70ad9e1181253c333a1cfdd75ae4b95a5
 RUN go build
 
 WORKDIR /work

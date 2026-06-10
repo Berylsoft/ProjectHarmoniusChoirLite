@@ -12,7 +12,7 @@ sql:
           cache_statements: true
 overrides:
   go: null
-plugins: 
+plugins:
   - name: "sqlc-gen-from-template"
     process:
       cmd: "sqlc-gen-from-template"
