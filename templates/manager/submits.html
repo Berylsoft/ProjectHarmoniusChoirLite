@@ -15,12 +15,14 @@
 {% endblock %}
 
 {% block head %}
+  {% include "buttonInclude.html" %}
   {% include "selectorInclude.html" %}
+  <link href="/static/pages/manager/submits.css?h={{ env!("AH_PAGES_MANAGER_SUBMITS_CSS") }}" rel="stylesheet" />
 {% endblock %}
 
-{% macro selected(selected) %}
-  {% if selected %} data-selected {% endif %}
-{% endmacro %}
+{% macro selected(selected) -%}
+  {% if selected -%} data-selected {%- endif %}
+{%- endmacro %}
 
 {% macro handleToggle(name, current, unsets) %}
   () => {
@@ -38,33 +40,84 @@
 {% endmacro %}
 
 {% block content %}
-  <div style="background-color: var(--bgLight); padding: var(--20unit)">
-    筛选: 
-    <comp-selector id="filter" multi>
-      <button {{ selected(filter.pending) }}>待审核</button>
-      <button {{ selected(filter.rejected) }}>已拒绝</button>
-      <button {{ selected(filter.passed) }}>已通过</button>
-      <button {{ selected(filter.replaced) }}>被替代</button>
-    </comp-selector>
-    <script type="module">
-      const handlers = [
-        {{ handleToggle("pending", filter.pending, ["rejected", "passed", "replaced"]) }},
-        {{ handleToggle("rejected", filter.rejected, ["pending", "passed", "replaced"]) }},
-        {{ handleToggle("passed", filter.passed, ["pending", "rejected"]) }},
-        {{ handleToggle("replaced", filter.replaced, ["pending", "rejected"]) }},
-      ];
-      filter.onchange = (i, idx) => handlers[idx]();
-    </script>
-  </div>
   <div>
-    {% for it in items %}
+    <div>
+      筛选:
+      <comp-selector id="filter" multi>
+        <button {{ selected(filter.pending) }}>待审核</button>
+        <button {{ selected(filter.rejected) }}>已拒绝</button>
+        <button {{ selected(filter.passed) }}>已通过</button>
+        <button {{ selected(filter.replaced) }}>被替代</button>
+      </comp-selector>
+      <script type="module">
+        const handlers = [
+          {{ handleToggle("pending", filter.pending, ["rejected", "passed", "replaced"]) }},
+          {{ handleToggle("rejected", filter.rejected, ["pending", "passed", "replaced"]) }},
+          {{ handleToggle("passed", filter.passed, ["pending", "rejected"]) }},
+          {{ handleToggle("replaced", filter.replaced, ["pending", "rejected"]) }},
+        ];
+        filter.onchange = (i, idx) => handlers[idx]();
+      </script>
+    </div>
+    <div>
+      <button id="downloadAllPassed" class="button">下载全部已通过试音</button>
+      <script>downloadAllPassed.onclick = () =>
+              open("/manager/submits/download/passed")</script>
+    </div>
+  </div>
+  <div id="submits">
+    <div>
+      <div>IDs</div>
+      <div>BID</div>
+      <div>第?次试音</div>
+      <div>署名</div>
+      <div>和声组意向</div>
+      <div>提交时间</div>
+      <div>状态</div>
+      <div>组别</div>
+      <div>操作</div>
+    </div>
+    {% for it in items -%}
       <div>
-        <a href="./submits/{{ it.id }}">#{{ it.id }}</a>,
-        UID: {{ it.user_id }}, BID: {{ it.thirdparty_id }}, 第 {{ it.nth }} 次试音,
-        署名: {{ it.signature }},
-        和声组意向: {% if it.hgi -%} 有 {%- else -%} 无 {%- endif %},
-        创建于: {{ it.created_at }}, 状态: {{ format!("{:?}", it.status) }}
+        <div>{{ it.user_id }}#{{ it.id }}</div>
+        <div>{{ it.thirdparty_id }}</div>
+        <div>{{ it.nth }}</div>
+        <div>{{ it.signature }}</div>
+        {% if it.hgi -%}
+          <div>有</div>
+        {%- else -%}
+          <div class="txtSec">无</div>
+        {%- endif %}
+        <div>{{ it.created_at }}</div>
+        <div>
+          {% if it.status.pending -%}
+            待审核
+          {%- elif it.status.rejected -%}
+            <span class="txtErr">未通过</span>
+          {%- elif it.status.replaced && !it.status.passed -%}
+            <span class="txtSec">被替代</span>
+          {%- elif it.status.passed -%}
+            {% if it.status.replaced -%}
+              <span class="txtSec">通过 (被替代)</span>
+            {%- else -%}
+              <span class="txtOk">通过</span>
+            {%- endif %}
+          {%- endif %}
+        </div>
+        {% if it.status.passed -%}
+          <div>
+            <span>合唱</span>
+            <span {% if !it.status.lead -%} class="txtSec" {% endif %}>领唱</span>
+            <span {% if !it.status.harmony -%} class="txtSec" {% endif %}>和声</span>
+          </div>
+        {%- else -%}
+          <div class="txtSec">-</div>
+        {%- endif %}
+        <div>
+          <a href="./submits/{{ it.id }}">详情</a>
+          <a href="./submits/{{ it.id }}/file" target="_blank">下载</a>
+        </div>
       </div>
-    {% endfor %}
+    {%- endfor %}
   </div>
 {% endblock %}

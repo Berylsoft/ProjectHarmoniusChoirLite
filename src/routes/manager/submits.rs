@@ -14,8 +14,9 @@ use crate::{
         self,
         auth::access_token::{self, AccessToken},
     },
-    shared::Status,
+    shared::{Status, StatusFlat},
     sql,
+    utils::reformat_time_cn,
 };
 
 #[expect(clippy::struct_excessive_bools)]
@@ -69,8 +70,9 @@ pub async fn handler(
             nth: submit.nth,
             hgi: submit.harmony_group_intention,
             signature: &submit.user_signature,
-            created_at: &submit.created_at,
-            status,
+            created_at: reformat_time_cn(&submit.created_at)
+                .context("reformat_time_cn")?,
+            status: status.into(),
             thirdparty_id: &submit.thirdparty_id,
         });
     }
@@ -114,7 +116,7 @@ struct Item<'a> {
     nth: i64,
     signature: &'a str,
     hgi: bool,
-    created_at: &'a str,
-    status: Status,
+    created_at: Box<str>,
+    status: StatusFlat,
     thirdparty_id: &'a str,
 }
