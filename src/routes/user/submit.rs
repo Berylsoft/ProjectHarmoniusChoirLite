@@ -29,8 +29,7 @@ use crate::{
     },
 };
 
-pub const SIZE_RANGE: RangeInclusive<usize> =
-    1_000_000..=100_000_000_usize;
+pub const SIZE_RANGE: RangeInclusive<usize> = 100_000..=12_000_000;
 pub const MAX_PENDING: i64 = 5;
 
 #[derive(Debug)]
