@@ -1,4 +1,10 @@
-use std::{path::Path, sync::LazyLock};
+use std::{
+    path::Path,
+    sync::{
+        LazyLock,
+        atomic::{self, AtomicBool},
+    },
+};
 
 use anyhow::Context as _;
 use include_dir::Dir;
@@ -29,6 +35,8 @@ pub fn db_open(
     path: impl AsRef<Path>,
     flags: OpenFlags,
 ) -> anyhow::Result<Connection> {
+    static MIGRATION_RUNED: AtomicBool = AtomicBool::new(false);
+
     let mut conn = Connection::open_with_flags(path, flags)
         .context("Connection::open_with_flags")?;
 
@@ -37,9 +45,12 @@ pub fn db_open(
     conn.pragma_update(None, "foreign_keys", "ON")
         .context("PRAGMA foreign_keys = ON")?;
 
-    MIGRATIONS
-        .to_latest(&mut conn)
-        .context("MIGRATIONS.to_latest")?;
+    if !MIGRATION_RUNED.fetch_or(true, atomic::Ordering::SeqCst) {
+        MIGRATIONS
+            .to_latest(&mut conn)
+            .context("MIGRATIONS.to_latest")?;
+    }
+
     Ok(conn)
 }
 
