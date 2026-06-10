@@ -95,7 +95,7 @@ impl Verify for AccessToken<User> {
         &self,
         trans: &Transaction,
     ) -> Result<(), AccessTokenRejection> {
-        tracing::debug!(
+        tracing::info!(
             "uid: {}, utid: {}, is_manager: {}",
             self.uid,
             self.tid,
