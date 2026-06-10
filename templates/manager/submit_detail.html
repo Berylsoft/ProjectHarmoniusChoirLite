@@ -9,57 +9,59 @@
   {% if !readonly %}
     {% include "buttonInclude.html" %}
   {% endif %}
+  <link href="/static/pages/manager/submitDetail.css?h={{ env!("AH_PAGES_MANAGER_SUBMIT_DETAIL_CSS") }}" rel="stylesheet" />
 {% endblock %}
 {% import "selectorInclude.html" as sel %}
 
 {% block content %}
-  <div>SID: {{ id }}</div>
-  <div>UID: {{ user_id }}</div>
-  <div>BID: {{ thirdparty_id }}</div>
-  <div>次数: {{ nth }}</div>
-  <div>署名: {{ signature }}</div>
-  <div>和声组意向: {% if hgi %} 有 {% else %} 无 {% endif %}</div>
-  <div>提交时间: {{ created_at }}</div>
-  {% if !status.replaced || (status.replaced && status.passed) -%}
-    <div>
-      <comp-selector id="selPass"
-        {% if readonly -%} readonly {%- endif %}>
-        <button style="--color: var(--txtErr)"
-          {{ sel::selected(status.rejected) }}>
-          拒绝
-        </button>
-        <button style="--color: var(--txtOk)"
-          {{ sel::selected(status.passed) }}>
-          通过
-        </button>
-      </comp-selector>
-    </div>
-    <div id="selGroupContainer"
-      {% if !status.passed -%} style="display: none;" {%- endif %}>
-      <comp-selector id="selGroup"
-        {% if readonly -%} readonly {%- endif %} multi>
-        <button data-selected>合唱</button>
-        <button {{ sel::selected(status.lead) }}>领唱</button>
-        <button {{ sel::selected(status.harmony) }}>和声</button>
-      </comp-selector>
-    </div>
-    {% if !readonly -%}
+  <div>
+    <div class="txtSec">{{ user_id }}#{{ id }}</div>
+    <div>BID: {{ thirdparty_id }}</div>
+    <div>次数: {{ nth }}</div>
+    <div>署名: {{ signature }}</div>
+    <div>和声组意向: {% if hgi %} 有 {% else %} 无 {% endif %}</div>
+    <div>提交时间: {{ created_at }}</div>
+    <div><audio controls src="./{{ id }}/file"></audio></div>
+    {% if !status.replaced || (status.replaced && status.passed) -%}
       <div>
-        <button id="submit" class="button theme">提交</button>
+        <comp-selector id="selPass"
+          {% if readonly -%} readonly {%- endif %}>
+          <button style="--color: var(--txtErr)"
+            {{ sel::selected(status.rejected) }}>
+            拒绝
+          </button>
+          <button style="--color: var(--txtOk)"
+            {{ sel::selected(status.passed) }}>
+            通过
+          </button>
+        </comp-selector>
       </div>
-      <script type="module">
-        import { init } from "/static/pages/manager/submitDetail.js\
+      <div id="selGroupContainer"
+        {% if !status.passed -%} style="display: none;" {%- endif %}>
+        <comp-selector id="selGroup"
+          {% if readonly -%} readonly {%- endif %} multi>
+          <button data-selected>合唱</button>
+          <button {{ sel::selected(status.lead) }}>领唱</button>
+          <button {{ sel::selected(status.harmony) }}>和声</button>
+        </comp-selector>
+      </div>
+      {% if !readonly -%}
+        <div>
+          <button id="submit" class="button theme">提交</button>
+        </div>
+        <script type="module">
+          import { init } from "/static/pages/manager/submitDetail.js\
 ?h={{ env!("AH_PAGES_MANAGER_SUBMIT_DETAIL_JS") }}";
-
-        init({{ id }}, selPass, selGroup, submit);
-      </script>
+              init({{ id }}, selPass, selGroup, submit);
+        </script>
+      {%- endif %}
     {%- endif %}
-  {%- endif %}
-  {% if status.replaced -%}
-    <div>
-      <comp-selector readonly>
-        <button data-selected>被替代</button>
-      </comp-selector>
-    </div>
-  {%- endif %}
+    {% if status.replaced -%}
+      <div>
+        <comp-selector readonly>
+          <button data-selected>被替代</button>
+        </comp-selector>
+      </div>
+    {%- endif %}
+  </div>
 {% endblock %}

@@ -15,7 +15,7 @@ use crate::{
     },
     shared::{Status, StatusFlat},
     sql,
-    utils::warn_problem_general,
+    utils::{reformat_time_cn, warn_problem_general},
 };
 
 #[expect(clippy::missing_errors_doc)]
@@ -57,7 +57,8 @@ pub async fn handler(
             nth: submit.nth,
             signature: &submit.user_signature,
             hgi: submit.harmony_group_intention,
-            created_at: &submit.created_at,
+            created_at: reformat_time_cn(&submit.created_at)
+                .context("reformat_time_cn")?,
             status,
             readonly,
             thirdparty_id: &submit.thirdparty_id,
@@ -74,7 +75,7 @@ struct ViewTemplate<'a> {
     nth: i64,
     signature: &'a str,
     hgi: bool,
-    created_at: &'a str,
+    created_at: Box<str>,
     status: StatusFlat,
     readonly: bool,
     thirdparty_id: &'a str,
