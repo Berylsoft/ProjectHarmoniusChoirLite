@@ -20,6 +20,14 @@ set token_id = token_id + 1
 where id = ?
 returning token_id;
 
+-- name: is_user_have_submits_by_user_id :one
+select cast(exists (
+  select 1
+  from submits s
+  where s.user_id = ?
+  limit 1
+) as bool) as have_submits;
+
 -- name: get_pending_submit_by_user_id :one
 select s.id, s.nth
 from submits_info_with_marking s

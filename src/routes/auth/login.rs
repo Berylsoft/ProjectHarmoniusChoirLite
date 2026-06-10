@@ -76,17 +76,28 @@ pub async fn handler(
             .context("get_user_id_by_thirdparty_id")?
             .map(|it| it.id);
 
-    let (user_id, token_id) = if let Some(user_id) = user_id {
-        let res = sql::inc_user_token_id_by_user_id(&trans, user_id)
-            .context("inc_user_token_id_by_user_id")?
-            .context("should return new token_id")?;
-        (user_id, res.token_id)
-    } else {
-        let res = sql::ins_user(&trans, token.id.into())
-            .context("ins_user")?
-            .context("should return id and token_id")?;
-        (res.id, res.token_id)
-    };
+    let (user_id, token_id, redir_to_submit) =
+        if let Some(user_id) = user_id {
+            let res = sql::inc_user_token_id_by_user_id(&trans, user_id)
+                .context("inc_user_token_id_by_user_id")?
+                .context("should return new token_id")?;
+
+            let redir_to_submit = if token.is_manager {
+                false
+            } else {
+                !sql::is_user_have_submits_by_user_id(&trans, user_id)
+                    .context("is_user_have_submits_by_user_id")?
+                    .context("should return exactly 1 row")?
+                    .have_submits
+            };
+
+            (user_id, res.token_id, redir_to_submit)
+        } else {
+            let res = sql::ins_user(&trans, token.id.into())
+                .context("ins_user")?
+                .context("should return id and token_id")?;
+            (res.id, res.token_id, false)
+        };
 
     trans.commit().await?;
 
@@ -96,15 +107,16 @@ pub async fn handler(
         token.is_manager,
     );
 
+    let redir_target = if redir_to_submit {
+        format!("{}/user/submit", &*redir_prefix)
+    } else {
+        format!("{}/user/submits", &*redir_prefix)
+    };
+
     let jar = jar.add(access_token.into_cookie_with(&state)?);
     Ok((
         StatusCode::SEE_OTHER,
         jar,
-        [
-            (
-                header::LOCATION,
-                format!("{}/user/submits", &*redir_prefix),
-            ),
-        ],
+        [(header::LOCATION, redir_target)],
     ))
 }
