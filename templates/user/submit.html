@@ -46,48 +46,11 @@
       <button class="button theme">提交</button>
     </div>
     <script type="module">
-      const es = formSubmit.elements;
-      const r = /^(?:[^\x00-\x1F\x7F-\u009F\uE000-\uF8FF\u{F0000}-\u{FFFFD}\u{100000}-\u{10FFFD}]*)$/u;
-      es.signature.oninput = (e) => {
-        const i = e.target;
-        if (!r.test(i.value)) {
-          i.setCustomValidity("character isn't supported");
-        } else {
-          i.setCustomValidity("");
-        }
-      };
-
-      es.comment.oninput = (e) => {
-        const i = e.target;
-        const encoded = (new TextEncoder()).encode(i.value);
-        if (encoded.length > 256) {
-          const percent = ((encoded.length / 256) * 100 - 100).toFixed(0);
-          i.setCustomValidity(`备注过长, 超出${percent}%`);
-        } else {
-          i.setCustomValidity("");
-        }
-      }
-
-      es.file.oninput = (e) => {
-        const i = e.target;
-        const f = i.files[0];
-        if (f && (f.size < {{ size_min }} || f.size > {{ size_max }})) {
-          i.setCustomValidity(
-            "不支持的文件大小, 请选择大小在 {{ size_min | filesizeformat }} \
-和 {{ size_max | filesizeformat }} 之间的文件"
-          );
-        } else {
-          i.setCustomValidity("");
-        }
-      };
-
-      let prevHgi = false;
-      selHgi.onchange = () => {
-        prevHgi = !prevHgi;
-        let s = prevHgi ? [false, true] : [true, false];
-        es.hgi.value = s[0] ? "0" : "1"
-        return s
-      };
+      import { init } from "/static/pages/user/submit.js\
+?h={{ env!("AH_PAGES_USER_SUBMIT_JS") }}";
+      init(formSubmit, selHgi,
+      {{ size_min }}, "{{ size_min | filesizeformat }}",
+      {{ size_max }}, "{{ size_max | filesizeformat }}");
     </script>
   </form>
 {% endblock %}
