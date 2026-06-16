@@ -61,10 +61,10 @@
           {%- elif it.status.rejected -%}
             <span class="txtErr">未通过</span>
           {%- elif it.status.replaced && !it.status.passed -%}
-            被替代
+            <span class="txtSec">被替代</span>
           {%- elif it.status.passed -%}
             {% if it.status.replaced -%}
-              通过 (被替代)
+              <span class="txtSec">通过 (被替代)</span>
             {%- else -%}
               <span class="txtOk">通过</span>
             {%- endif %}
