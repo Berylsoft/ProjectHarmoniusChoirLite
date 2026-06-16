@@ -44,6 +44,20 @@ export function init(sid, selPass, selGroup, submit, comment) {
       };
     }
 
+    function alertErrGroupMismatch() {
+      let old;
+      if (!lead) old = "领唱";
+      else old = "和声";
+
+      let now;
+      if (lead) now = "领唱";
+      else now = "和声";
+
+      alert(`该用户上次通过时选择了"${old}"并且没有选择"${now}", \
+不能同时缺少上次选择的组别和选择上次没有选择的组别, \
+请考虑选择"${old}"或取消选择"${now}"`);
+    }
+
     fetch("/manager/review", {
       method: "POST",
       headers: {
@@ -53,8 +67,23 @@ export function init(sid, selPass, selGroup, submit, comment) {
     }).then(async (res) => {
       if (res.status != 200) {
         const msg = await res.text();
-        const reqId = res.headers["x-request-id"];
+        const reqId = res.headers.get("x-request-id");
         console.log(msg, res);
+
+        if (
+          res.headers.get("content-type").startsWith("application/problem+json")
+        ) {
+          const problem = JSON.parse(msg);
+          if (
+            problem["type"].startsWith(
+              "err://group_both_missing_old_and_have_new",
+            )
+          ) {
+            alertErrGroupMismatch();
+            return;
+          }
+        }
+
         alert(`${res.status} ${res.statusText}, ${reqId}, ${msg}`);
       } else {
         globalThis.location.reload();

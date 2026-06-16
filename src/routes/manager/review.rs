@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
 use anyhow::Context as _;
-use axum::{http::StatusCode, response::IntoResponse};
+use axum::{
+    http::{StatusCode, Uri},
+    response::IntoResponse,
+};
 use problem_details::ProblemDetails;
 use serde::Deserialize;
 
@@ -190,6 +193,9 @@ missing old group({old:?}) and have new group({new:?})"
                     return Err(ProblemDetails::from_status_code(
                         StatusCode::CONFLICT,
                     )
+                    .with_type(Uri::from_static(
+                        "err://group_both_missing_old_and_have_new",
+                    ))
                     .with_detail(msg)
                     .into());
                 } else if !missing_old {
