@@ -24,6 +24,34 @@ body > div {
   gap: var(--10unit);
 }
 
-body > div > div:nth-child(8) {
-  padding-top: var(--10unit);
+.textBox {
+  display: flex;
+  flex-direction: column;
+
+  padding: var(--10unit);
+  gap: var(--10unit);
+  background-color: var(--bgDark);
+
+  line-break: anywhere;
+}
+
+.textBox > span:first-child {
+  color: var(--txtSec);
+  font-size: var(--14unit);
+}
+
+.textBox > pre {
+  margin: 0;
+}
+
+#comment {
+  background-color: transparent;
+  resize: none;
+  border: none;
+  outline: none;
+  color: var(--txt);
+}
+
+#comment::placeholder {
+  color: var(--txtSec);
 }

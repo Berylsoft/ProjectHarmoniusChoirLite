@@ -57,6 +57,7 @@ pub async fn handler(
             nth: submit.nth,
             signature: &submit.user_signature,
             hgi: submit.harmony_group_intention,
+            comment: &submit.comment,
             created_at: reformat_time_cn(&submit.created_at)
                 .context("reformat_time_cn")?,
             status,
@@ -75,6 +76,7 @@ struct ViewTemplate<'a> {
     nth: i64,
     signature: &'a str,
     hgi: bool,
+    comment: &'a str,
     created_at: Box<str>,
     status: StatusFlat,
     readonly: bool,

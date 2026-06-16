@@ -21,6 +21,7 @@ use crate::{
         auth::access_token::{self, AccessToken},
         file,
     },
+    shared::COMMENT_LEN_LIMIT_BYTES,
     sql,
     utils::{
         MAX_USER_SIGNATURE_LENGTH, hash_to_storage_path,
@@ -38,6 +39,7 @@ pub struct SubmitReq {
     signature: String,
     /// `harmony_group_intention`
     hgi: bool,
+    comment: String,
     mime: Mime,
     hash: blake3::Hash,
     file_name: String,
@@ -123,6 +125,7 @@ pub async fn handler(
         nth,
         req.signature,
         i64::from(req.hgi),
+        req.comment,
         req.hash.as_bytes().to_vec(),
         req.file_name,
         req.mime.to_string(),
@@ -146,6 +149,7 @@ async fn receive_into_tmp(
     let mut signature = None;
     let mut hgi = None;
     let mut file = None;
+    let mut comment = None;
 
     let res = async {
         while let Some(mut field) =
@@ -189,6 +193,10 @@ async fn receive_into_tmp(
                         receive_file_tmp(field, redir_prefix).await?,
                     );
                 }
+                "comment" => {
+                    check_dup!(comment);
+                    comment = Some(receive_comment(&mut field).await?);
+                }
                 _ => {
                     let name = name.to_owned();
                     tracing::debug!("unknown field name {name}");
@@ -212,14 +220,21 @@ async fn receive_into_tmp(
         Err(err) => return Err(err),
     }
 
-    let exists = (signature.is_some(), hgi.is_some(), file.is_some());
-    let (Some(signature), Some(hgi), Some(file)) = (signature, hgi, file)
+    let exists = (
+        signature.is_some(),
+        hgi.is_some(),
+        file.is_some(),
+        comment.is_some(),
+    );
+    let (Some(signature), Some(hgi), Some(file), Some(comment)) =
+        (signature, hgi, file, comment)
     else {
         tracing::warn!(
-            "missing field, exists: signature={}, hgi={}, file={}",
+            "missing field, exists: signature={}, hgi={}, file={}, comment={}",
             exists.0,
             exists.1,
             exists.2,
+            exists.3
         );
         return bad_req("missing field");
     };
@@ -237,6 +252,7 @@ async fn receive_into_tmp(
         file: Some(file),
         signature,
         hgi,
+        comment,
         mime,
         hash,
         file_name,
@@ -417,6 +433,23 @@ fn check_content_type(
     *head = None;
 
     Ok(())
+}
+
+async fn receive_comment(
+    field: &mut Field<'_>,
+) -> Result<String, routes::Error> {
+    let buf = receive_with_limit(field, COMMENT_LEN_LIMIT_BYTES).await?;
+    let Some(buf) = buf else {
+        tracing::debug!("comment field too large");
+        return bad_req("invalid comment");
+    };
+
+    String::from_utf8(buf)
+        .map(|it| it.trim().to_owned())
+        .or_else(|err| {
+            tracing::debug!("expect utf8 in field signature, but: {err}");
+            bad_req("expect utf8 in field signature")
+        })
 }
 
 async fn receive_with_limit(

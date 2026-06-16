@@ -12,7 +12,7 @@ use crate::{
         auth::access_token::{self, AccessToken},
         notify::{self, bot::ReviewResult},
     },
-    shared::Group,
+    shared::{COMMENT_LEN_LIMIT_BYTES, Group},
     sql,
     utils::warn_problem_general,
 };
@@ -21,6 +21,7 @@ use crate::{
 pub struct ReviewReq {
     sid: i64,
     action: ReviewAction,
+    comment: Box<str>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,7 +35,7 @@ pub async fn handler(
     token: AccessToken<access_token::Manager>,
     notify: Notify,
     trans: TransactionDeferBegin,
-    req: Payload<ReviewReq>,
+    mut req: Payload<ReviewReq>,
 ) -> routes::Result<impl IntoResponse> {
     tracing::debug!(
         "executing review: {:?}, by (uid){}",
@@ -59,6 +60,22 @@ pub async fn handler(
             .into());
         }
     }
+
+    req.0.comment = req.comment.trim().into();
+
+    if req.comment.len() > COMMENT_LEN_LIMIT_BYTES {
+        warn_problem_general(&format!(
+            "comment len {} > {COMMENT_LEN_LIMIT_BYTES}",
+            req.comment.len()
+        ));
+        return Err(ProblemDetails::from_status_code(
+            StatusCode::BAD_REQUEST,
+        )
+        .with_detail("invalid comment")
+        .into());
+    }
+
+    let comment = (!req.comment.is_empty()).then(|| req.comment.clone());
 
     let trans = trans.begin().await?;
 
@@ -87,13 +104,15 @@ pub async fn handler(
             .context("get_user_thirdparty_id_by_submit_id")?
             .context("should return thirdparty_id")?
             .thirdparty_id;
-    let result = execute_review(&trans, &req, submit.user_id)?;
+
+    let result = execute_review(&trans, req.0, submit.user_id)?;
 
     trans.commit().await?;
 
     notify.notify_bot(notify::bot::Payload::Review {
         id: thirdparty_id.into_boxed_str(),
         result,
+        comment,
     });
 
     Ok(())
@@ -101,14 +120,14 @@ pub async fn handler(
 
 fn execute_review(
     trans: &Transaction,
-    req: &ReviewReq,
+    req: ReviewReq,
     submit_user_id: i64,
 ) -> Result<ReviewResult, routes::Error> {
     let sid = req.sid;
 
-    let res = match &req.action {
+    let res = match req.action {
         ReviewAction::Reject => {
-            sql::ins_submit_reject(trans, sid)
+            sql::ins_submit_reject(trans, sid, req.comment.into())
                 .context("ins_submit_reject")?;
 
             ReviewResult::Reject
@@ -122,12 +141,13 @@ fn execute_review(
                 .context("get_last_passed_submit_id_by_user_id")?
                 .map(|it| it.id);
 
-            let res = sql::ins_submit_pass(trans, sid)
-                .context("ins_submit_pass")?
-                .context("success should return id")?;
+            let res =
+                sql::ins_submit_pass(trans, sid, req.comment.into())
+                    .context("ins_submit_pass")?
+                    .context("success should return id")?;
             let pass_id = res.id;
 
-            for group in groups {
+            for group in &groups {
                 sql::ins_submit_pass_group(
                     trans,
                     pass_id,
@@ -148,14 +168,14 @@ fn execute_review(
                 let have_new =
                     groups.difference(&last_pass_groups).next().is_some();
                 let missing_old =
-                    last_pass_groups.difference(groups).next().is_some();
+                    last_pass_groups.difference(&groups).next().is_some();
 
                 if missing_old && have_new {
                     let new = groups
                         .difference(&last_pass_groups)
                         .collect::<Box<_>>();
                     let old = last_pass_groups
-                        .difference(groups)
+                        .difference(&groups)
                         .collect::<Box<_>>();
                     tracing::debug!(
                         "both missing old group({old:?}) \
@@ -189,10 +209,7 @@ missing old group({old:?}) and have new group({new:?})"
                 false
             };
 
-            ReviewResult::Pass {
-                groups: groups.clone(),
-                ignored,
-            }
+            ReviewResult::Pass { groups, ignored }
         }
     };
 

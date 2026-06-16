@@ -1,4 +1,4 @@
-export function init(sid, selPass, selGroup, submit) {
+export function init(sid, selPass, selGroup, submit, comment) {
   let pass = false;
   selPass.onchange = (s) => {
     pass = s[1];
@@ -16,9 +16,17 @@ export function init(sid, selPass, selGroup, submit) {
   };
 
   submit.onclick = () => {
+    const encoded = new TextEncoder().encode(comment.value);
+    if (encoded.length > 256) {
+      const percent = ((encoded.length / 256) * 100 - 100).toFixed(0);
+      alert(`备注过长, 超出${percent}%`);
+      return;
+    }
+
     const body = {
       sid: sid,
       action: {},
+      comment: comment.value,
     };
 
     if (pass) {

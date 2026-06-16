@@ -36,7 +36,7 @@ body > div {
   gap: var(--5unit);
 }
 
-.item > div {
+.item > div:not(.textBox) {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -45,4 +45,24 @@ body > div {
 .item > div:nth-child(2) > div:first-child {
   display: flex;
   gap: var(--2unit);
+}
+
+.textBox {
+  display: flex;
+  flex-direction: column;
+
+  padding: var(--10unit);
+  gap: var(--10unit);
+  background-color: var(--bgDark);
+
+  line-break: anywhere;
+}
+
+.textBox > span:first-child {
+  color: var(--txtSec);
+  font-size: var(--14unit);
+}
+
+.textBox > pre {
+  margin: 0;
 }

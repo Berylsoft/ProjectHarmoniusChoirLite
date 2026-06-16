@@ -20,8 +20,15 @@
     <div>次数: {{ nth }}</div>
     <div>署名: {{ signature }}</div>
     <div>和声组意向: {% if hgi %} 有 {% else %} 无 {% endif %}</div>
+    {% if comment != "" %}
+      <div class="textBox">
+        <span>备注</span>
+        <pre>{{ comment }}</pre>
+      </div>
+    {% endif %}
     <div>提交时间: {{ created_at }}</div>
     <div><audio controls preload="none" src="./{{ id }}/file"></audio></div>
+    <div></div>
     {% if !status.replaced || (status.replaced && status.passed) -%}
       <div>
         <comp-selector id="selPass"
@@ -45,14 +52,26 @@
           <button {{ sel::selected(status.harmony) }}>和声</button>
         </comp-selector>
       </div>
+      {% if !readonly || &*status.comment != "" %}
+        <div class="textBox">
+          <span>审核备注{% if !readonly %} (可选){% endif %}</span>
+          {% if !readonly %}
+            <textarea type="text"
+              id="comment" placeholder="输入"></textarea>
+          {% else %}
+            <pre>{{ status.comment }}</pre>
+          {% endif %}
+        </div>
+      {% endif %}
       {% if !readonly -%}
+        <div></div>
         <div>
           <button id="submit" class="button theme">提交</button>
         </div>
         <script type="module">
           import { init } from "/static/pages/manager/submitDetail.js\
 ?h={{ env!("AH_PAGES_MANAGER_SUBMIT_DETAIL_JS") }}";
-              init({{ id }}, selPass, selGroup, submit);
+              init({{ id }}, selPass, selGroup, submit, comment);
         </script>
       {%- endif %}
     {%- endif %}

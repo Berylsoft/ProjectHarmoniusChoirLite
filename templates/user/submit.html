@@ -28,6 +28,12 @@
         placeholder="输入"
         >
     </div>
+    <div class="field">
+      <label for="comment">备注 (可选)</label>
+      <textarea type="text"
+        id="comment" name="comment"
+        placeholder="输入"></textarea>
+    </div>
     <div>
       <label for="hgi">和声组意向</label>
       <input type="hidden" id="hgi" name="hgi" value="0">
@@ -36,7 +42,7 @@
         <button type="button">有</button>
       </comp-selector>
     </div>
-    <div>
+    <div id="btnSubmit">
       <button class="button theme">提交</button>
     </div>
     <script type="module">
@@ -50,6 +56,17 @@
           i.setCustomValidity("");
         }
       };
+
+      es.comment.oninput = (e) => {
+        const i = e.target;
+        const encoded = (new TextEncoder()).encode(i.value);
+        if (encoded.length > 256) {
+          const percent = ((encoded.length / 256) * 100 - 100).toFixed(0);
+          i.setCustomValidity(`备注过长, 超出${percent}%`);
+        } else {
+          i.setCustomValidity("");
+        }
+      }
 
       es.file.oninput = (e) => {
         const i = e.target;

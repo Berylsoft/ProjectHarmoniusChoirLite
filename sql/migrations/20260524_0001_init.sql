@@ -13,6 +13,7 @@ create table submits(
     nth integer not null,
     user_signature text not null,
     harmony_group_intention integer not null,
+    comment text not null,
 
     -- BLAKE3
     file_hash blob not null,
@@ -28,13 +29,15 @@ create index submits__user_id__id
 
 create table submit_rejects(
     submit_id integer primary key
-        references submits(id) on delete restrict
+        references submits(id) on delete restrict,
+    comment text not null
 ) strict;
 
 create table submit_passes(
     id integer primary key autoincrement,
     submit_id integer not null unique
-        references submits(id) on delete restrict
+        references submits(id) on delete restrict,
+    comment text not null
 ) strict;
 
 create table submit_pass_groups(
@@ -60,6 +63,7 @@ as select
   s.nth,
   s.user_signature,
   cast(s.harmony_group_intention as boolean) as harmony_group_intention,
+  s.comment,
   s.created_at,
   cast(
     exists (

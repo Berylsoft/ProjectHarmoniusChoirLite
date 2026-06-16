@@ -177,11 +177,11 @@ pub fn hash_to_storage_path(hash: blake3::Hash) -> Box<Path> {
     PathBuf::from(path).into_boxed_path()
 }
 
-pub fn warn_problem(problem: &'static str, indicate: &'static str) {
+pub fn warn_problem(problem: &str, indicate: &str) {
     tracing::warn!("encountered {problem}, may indicate {indicate}");
 }
 
-pub fn warn_problem_general(problem: &'static str) {
+pub fn warn_problem_general(problem: &str) {
     let indicate = "broken invariant or abnormal behavior";
     warn_problem(problem, indicate);
 }

@@ -59,7 +59,8 @@ ws 需要按
     "result": {
       "action": "Reject",
       "data": null,
-    }
+    },
+    "comment": "null | string" // 审核备注
   }
 }
 ```
@@ -77,7 +78,8 @@ ws 需要按
         "groups": ["Choir", "Lead", "Harmony"], // 通过的组
         "ignored": "boolean" // 有没有被忽略
       }
-    }
+    },
+    "comment": "null | string" // 审核备注
   }
 }
 ```

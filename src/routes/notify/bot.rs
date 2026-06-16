@@ -42,7 +42,11 @@ pub struct ConnectReqQuery {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", content = "data")]
 pub enum Payload {
-    Review { id: Box<str>, result: ReviewResult },
+    Review {
+        id: Box<str>,
+        result: ReviewResult,
+        comment: Option<Box<str>>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]

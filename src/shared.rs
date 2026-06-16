@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Transaction, routes, sql};
 
+pub const COMMENT_LEN_LIMIT_BYTES: usize = 256;
+
 #[derive(
     Debug,
     Clone,
@@ -62,10 +64,13 @@ and passed with groups"
 #[derive(Debug)]
 pub enum Status {
     Pending,
-    Rejected,
+    Rejected {
+        comment: Box<str>,
+    },
     Passed {
         groups: HashSet<Group>,
         replaced: bool,
+        comment: Box<str>,
     },
     Replaced,
 }
@@ -84,13 +89,31 @@ impl Status {
         let status = [rejected, passed, replaced];
         Ok(match status {
             [false, false, false] => Self::Pending,
-            [true, false, false] => Self::Rejected,
+            [true, false, false] => {
+                let comment =
+                    sql::get_comment_of_reject_by_submit_id(trans, sid)
+                        .context("get_comment_of_reject_by_submit_id")?
+                        .context("comment of reject")?
+                        .comment;
+                Self::Rejected {
+                    comment: comment.into(),
+                }
+            }
             [false, false, true] => Self::Replaced,
             [false, true, replaced] => {
                 let groups =
                     Group::get_passed_groups_by_submit_id(trans, sid)?;
+                let comment =
+                    sql::get_comment_of_pass_by_submit_id(trans, sid)
+                        .context("get_comment_of_pass_by_submit_id")?
+                        .context("comment of pass")?
+                        .comment;
 
-                Self::Passed { groups, replaced }
+                Self::Passed {
+                    groups,
+                    replaced,
+                    comment: comment.into(),
+                }
             }
             _ => {
                 return Err(anyhow::anyhow!(
@@ -111,17 +134,19 @@ pub struct StatusFlat {
     pub passed: bool,
     pub lead: bool,
     pub harmony: bool,
+    pub comment: Box<str>,
 }
 
 impl From<Status> for StatusFlat {
     fn from(value: Status) -> Self {
         let pending = matches!(value, Status::Pending);
-        let rejected = matches!(value, Status::Rejected);
+        let rejected = matches!(value, Status::Rejected { .. });
 
         let mut replaced = matches!(value, Status::Replaced);
         let (passed, lead, harmony) = if let Status::Passed {
             groups,
             replaced: r,
+            ..
         } = &value
         {
             replaced |= *r;
@@ -134,6 +159,12 @@ impl From<Status> for StatusFlat {
             Default::default()
         };
 
+        let comment = match value {
+            Status::Rejected { comment }
+            | Status::Passed { comment, .. } => comment,
+            Status::Pending | Status::Replaced => Default::default(),
+        };
+
         Self {
             pending,
             rejected,
@@ -141,6 +172,7 @@ impl From<Status> for StatusFlat {
             passed,
             lead,
             harmony,
+            comment,
         }
     }
 }

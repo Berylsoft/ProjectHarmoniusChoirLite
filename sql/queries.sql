@@ -52,13 +52,13 @@ insert into submit_replaces
 
 -- name: ins_submit_reject :exec
 insert into submit_rejects
-(submit_id) values
-(?);
+(submit_id, comment) values
+(?,         ?);
 
 -- name: ins_submit_pass :one
 insert into submit_passes
-(submit_id) values
-(?)
+(submit_id, comment) values
+(?,         ?)
 returning id;
 
 -- name: ins_submit_pass_group :exec
@@ -68,11 +68,21 @@ insert into submit_pass_groups
 
 -- name: ins_submit :one
 insert into submits
-(user_id,    nth,       user_signature, harmony_group_intention,
-  file_hash, file_name, file_mime_type, created_at) values
-(?,          ?,         ?,              ?,
-  ?,         ?,         ?,              ?)
+(user_id,  nth,       user_signature, harmony_group_intention,
+  comment, file_hash, file_name,      file_mime_type, created_at) values
+(?,        ?,         ?,              ?,
+  ?,       ?,         ?,              ?,              ?)
 returning id;
+
+-- name: get_comment_of_reject_by_submit_id :one
+select comment
+from submit_rejects
+where submit_id = ?;
+
+-- name: get_comment_of_pass_by_submit_id :one
+select comment
+from submit_passes
+where submit_id = ?;
 
 -- name: get_submit_for_review_by_submit_id :one
 select
@@ -115,15 +125,7 @@ order by id desc
 limit 1;
 
 -- name: get_all_submits_by_user_id :many
-select
-  s.id,
-  s.nth,
-  s.user_signature,
-  s.harmony_group_intention,
-  s.created_at,
-  s.rejected,
-  s.passed,
-  s.replaced
+select s.*
 from submits_info_with_marking s
 where user_id = ?
 order by id desc;
