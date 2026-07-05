@@ -210,9 +210,9 @@ impl Info {
         let nth = self.nth;
         let ext = self.ty.to_ext();
 
-        let extra = self.extra_id.map_or_else(String::new, |extra_nth| {
-            format!("_{extra_nth}")
-        });
+        let extra = self
+            .extra_id
+            .map_or_else(String::new, |extra_id| format!("_{extra_id}"));
 
         format!("第四届_{uid}_{name}_{hgi}_第{nth}次{extra}.{ext}")
             .into_boxed_str()
