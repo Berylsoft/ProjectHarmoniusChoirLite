@@ -22,8 +22,11 @@ pub async fn handler(
         .context("get_all_submits_by_user_id")?;
 
     let mut items = Vec::with_capacity(submits.len());
+    let mut have_passed = false;
 
     for submit in &submits {
+        have_passed |= submit.passed;
+
         let status = Status::from_submit(
             &trans,
             submit.id,
@@ -48,6 +51,7 @@ pub async fn handler(
     Ok(Html(
         ViewTemplate {
             uid: token.uid(),
+            have_passed,
             is_manager: token.is_manager(),
             items: &items,
         }
@@ -60,6 +64,7 @@ pub async fn handler(
 struct ViewTemplate<'a> {
     uid: i64,
     is_manager: bool,
+    have_passed: bool,
     items: &'a [Item<'a>],
 }
 

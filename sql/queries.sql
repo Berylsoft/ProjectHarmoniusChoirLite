@@ -145,3 +145,28 @@ where s.id = ?;
 select *
 from submits_file_info_with_marking s
 where s.passed and not s.replaced;
+
+-- name: is_user_have_passed_submit :one
+select cast(
+  exists (
+    select 1
+    from submits_info_with_marking s
+    where s.user_id = ? and s.passed
+  ) as boolean
+) as have_passed;
+
+-- name: get_extra_file_count_by_user_id :one
+select count(*) as count
+from extra_files
+where user_id = ?;
+
+-- name: ins_extra_file :one
+insert into extra_files
+(user_id, file_hash, file_name, file_mime_type, created_at) values
+(?,       ?,         ?,         ?,              ?)
+returning id;
+
+-- name: get_all_extra_files_by_user_id :many
+select *
+from extra_files
+where user_id = ?;

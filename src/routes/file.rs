@@ -80,7 +80,7 @@ impl Type {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Info {
     pub hash: blake3::Hash,
 
@@ -90,6 +90,8 @@ pub struct Info {
     pub nth: i64,
     pub ty: Type,
     pub created_at: OffsetDateTime,
+
+    pub extra_id: Option<u64>,
 }
 
 impl Info {
@@ -116,6 +118,7 @@ impl Info {
             .context("type from mime")?,
             created_at: parse_rfc3339(&info.created_at)
                 .context("parse created_at")?,
+            extra_id: None,
         }))
     }
 
@@ -123,7 +126,7 @@ impl Info {
     pub fn get_all_passed(
         conn: &Connection,
     ) -> routes::Result<Box<[Self]>> {
-        sql::get_file_infos_of_all_passed_submits(conn)
+        let infos = sql::get_file_infos_of_all_passed_submits(conn)
             .context("get_file_infos_of_all_passed_submits")?
             .into_iter()
             .map(|info| {
@@ -143,9 +146,43 @@ impl Info {
                     .context("type from mime")?,
                     created_at: parse_rfc3339(&info.created_at)
                         .context("parse created_at")?,
+                    extra_id: None,
                 })
             })
-            .collect::<Result<Box<[_]>, _>>()
+            .collect::<routes::Result<Box<[_]>>>()?;
+
+        let mut result = Vec::with_capacity(infos.len());
+
+        for info in infos {
+            let mut extra_files =
+                sql::get_all_extra_files_by_user_id(conn, info.uid)
+                    .context("get_all_extra_files_by_user_id")?;
+
+            extra_files.sort_by_key(|it| it.id);
+
+            for extra_file in extra_files {
+                let mut extra_info = info.clone();
+                extra_info.hash =
+                    blake3::Hash::from_slice(&extra_file.file_hash)
+                        .context("extra file hash")?;
+                extra_info.ty = Type::try_from_mime(
+                    &extra_file
+                        .file_mime_type
+                        .parse()
+                        .context("parse mime")?,
+                )
+                .context("type from mime")?;
+                extra_info.created_at =
+                    parse_rfc3339(&extra_file.created_at)
+                        .context("parse created_at")?;
+                extra_info.extra_id = Some(extra_file.id.cast_unsigned());
+
+                result.push(extra_info);
+            }
+            result.push(info);
+        }
+
+        Ok(result.into())
     }
 
     #[must_use]
@@ -173,7 +210,11 @@ impl Info {
         let nth = self.nth;
         let ext = self.ty.to_ext();
 
-        format!("第四届_{uid}_{name}_{hgi}_第{nth}次.{ext}")
+        let extra = self.extra_id.map_or_else(String::new, |extra_nth| {
+            format!("_{extra_nth}")
+        });
+
+        format!("第四届_{uid}_{name}_{hgi}_第{nth}次{extra}.{ext}")
             .into_boxed_str()
     }
 }

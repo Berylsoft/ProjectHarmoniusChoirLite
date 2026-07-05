@@ -114,3 +114,19 @@ as select
   ) as replaced
 from submits s
 order by s.id asc;
+
+create table extra_files(
+    id integer primary key autoincrement,
+    user_id integer not null
+        references users(id) on delete restrict,
+
+    -- BLAKE3
+    file_hash blob not null,
+    file_mime_type text not null,
+    file_name text not null,
+    -- RFC 3339
+    created_at text not null
+) strict;
+
+create index extra_files__user_id__id
+  on extra_files (user_id, id);

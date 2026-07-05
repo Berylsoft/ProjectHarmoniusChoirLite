@@ -1,4 +1,4 @@
-use std::{fs, ops::RangeInclusive, str::FromStr};
+use std::{fs, str::FromStr};
 
 use anyhow::Context as _;
 use axum::{
@@ -14,6 +14,7 @@ use problem_details::ProblemDetails;
 use tempfile::NamedTempFile;
 use tokio::io::AsyncWriteExt as _;
 
+use super::submit::SIZE_RANGE;
 use crate::{
     RedirPrefix, TransactionDeferBegin,
     routes::{
@@ -21,31 +22,24 @@ use crate::{
         auth::access_token::{self, AccessToken},
         file,
     },
-    shared::COMMENT_LEN_LIMIT_BYTES,
     sql,
     utils::{
-        MAX_USER_SIGNATURE_LENGTH, hash_to_storage_path,
-        is_valid_user_signature, length_check_quick, res_see_other,
-        res_see_other_err_res,
+        hash_to_storage_path, length_check_quick, res_see_other,
+        res_see_other_err_res, warn_problem_general,
     },
 };
 
-pub const SIZE_RANGE: RangeInclusive<usize> = 100_000..=12_000_000;
-pub const MAX_PENDING: i64 = 5;
+pub const MAX_COUNT: u64 = 5;
 
 #[derive(Debug)]
-pub struct SubmitReq {
+pub struct ExtraFileReq {
     file: Option<NamedTempFile<tokio::fs::File>>,
-    signature: String,
-    /// `harmony_group_intention`
-    hgi: bool,
-    comment: String,
     mime: Mime,
     hash: blake3::Hash,
     file_name: String,
 }
 
-impl SubmitReq {
+impl ExtraFileReq {
     fn move_to_storage(&mut self) -> anyhow::Result<()> {
         let path = hash_to_storage_path(self.hash);
         let parent =
@@ -70,87 +64,75 @@ pub async fn handler(
     redir_prefix: RedirPrefix,
     multipart: Multipart,
 ) -> routes::Result<impl IntoResponse> {
-    tracing::debug!("handling submit by (uid){}", token.uid());
+    tracing::debug!("handling extra file by (uid){}", token.uid());
 
     let mut req = receive_into_tmp(multipart, &redir_prefix).await?;
 
     let trans = trans.begin().await?;
 
-    let latest_n = sql::get_latest_n_submits_for_limit_by_user_id(
-        &trans,
-        token.uid(),
-        MAX_PENDING,
-    )
-    .context("get_latest_n_submits_for_limit_by_user_id")?;
+    let user_have_passed =
+        sql::is_user_have_passed_submit(&trans, token.uid())
+            .context("is_user_have_passed_submit")?
+            .context("is_user_have_passed_submit option")?
+            .have_passed;
 
-    let max_pending_reached = latest_n.len()
-        == usize::try_from(MAX_PENDING)
-            .context("MAX_PENDING to usize")?
-        && latest_n.iter().all(|it| !it.rejected && !it.passed);
+    if !user_have_passed {
+        trans.commit().await?;
 
-    if max_pending_reached {
+        warn_problem_general("user doesn't have passed submit");
+
+        return Err(ProblemDetails::from_status_code(
+            StatusCode::CONFLICT,
+        )
+        .with_detail("doesn't have passed submit")
+        .into());
+    }
+
+    let existing_count =
+        sql::get_extra_file_count_by_user_id(&trans, token.uid())
+            .context("get_extra_file_count_by_user_id")?
+            .context("get_extra_file_count_by_user_id option")?
+            .count;
+
+    if existing_count.cast_unsigned() >= 5 {
         trans.commit().await?;
 
         return res_see_other_err_res(
             &redir_prefix,
-            "/user/error/max_pending",
+            "/user/error/max_extra_file",
         );
     }
 
     req.move_to_storage().context("move_to_storage")?;
 
-    let pending = sql::get_pending_submit_by_user_id(&trans, token.uid())
-        .context("get_pending_submit_by_user_id")?;
-
-    let cur_nth = if let Some(pending) = pending {
-        sql::ins_submit_replace(&trans, pending.id)
-            .context("ins_submit_replace")?;
-        pending.nth
-    } else {
-        sql::get_max_submit_nth_by_user_id(&trans, token.uid())
-            .context("get_max_submit_nth_by_user_id")?
-            .context("should always return nth")?
-            .nth
-    };
-
-    let nth = cur_nth + 1;
-
     let created_at = time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .context("format current time as RFC3339")?;
 
-    let sid = sql::ins_submit(
+    let ext_file_id = sql::ins_extra_file(
         &trans,
         token.uid(),
-        nth,
-        req.signature,
-        i64::from(req.hgi),
-        req.comment,
         req.hash.as_bytes().to_vec(),
         req.file_name,
         req.mime.to_string(),
         created_at,
     )
-    .context("ins_submit")?
-    .context("should return id")?
+    .context("ins_extra_file")?
+    .context("ins_extra_file should return id")?
     .id;
 
     trans.commit().await?;
 
-    tracing::debug!("submitted: (sid){sid}");
+    tracing::debug!("uploaded: (ext_file_id){ext_file_id}");
 
     Ok(res_see_other(&redir_prefix, "/user/submits"))
 }
 
-#[expect(clippy::too_many_lines)]
 async fn receive_into_tmp(
     mut multipart: Multipart,
     redir_prefix: &RedirPrefix,
-) -> Result<SubmitReq, routes::Error> {
-    let mut signature = None;
-    let mut hgi = None;
+) -> Result<ExtraFileReq, routes::Error> {
     let mut file = None;
-    let mut comment = None;
 
     let res = async {
         while let Some(mut field) =
@@ -178,34 +160,14 @@ async fn receive_into_tmp(
                 };
             }
 
-            match name {
-                "signature" => {
-                    check_dup!(signature);
-                    signature =
-                        Some(receive_signature(&mut field).await?);
-                }
-                "hgi" => {
-                    check_dup!(hgi);
-                    hgi = receive_hgi(&mut field).await?;
-                }
-                "file" => {
-                    check_dup!(file);
-                    file = Some(
-                        receive_file_tmp(field, redir_prefix).await?,
-                    );
-                }
-                "comment" => {
-                    check_dup!(comment);
-                    comment = Some(receive_comment(&mut field).await?);
-                }
-                _ => {
-                    let name = name.to_owned();
-                    tracing::debug!("unknown field name {name}");
-                    drain_field(&mut field).await?;
-                    return bad_req(&format!(
-                        "unknown field name: {name}"
-                    ));
-                }
+            if name == "file" {
+                check_dup!(file);
+                file = Some(receive_file_tmp(field, redir_prefix).await?);
+            } else {
+                let name = name.to_owned();
+                tracing::debug!("unknown field name {name}");
+                drain_field(&mut field).await?;
+                return bad_req(&format!("unknown field name: {name}"));
             }
         }
         Ok(())
@@ -221,90 +183,26 @@ async fn receive_into_tmp(
         Err(err) => return Err(err),
     }
 
-    let exists = (
-        signature.is_some(),
-        hgi.is_some(),
-        file.is_some(),
-        comment.is_some(),
-    );
-    let (Some(signature), Some(hgi), Some(file), Some(comment)) =
-        (signature, hgi, file, comment)
-    else {
-        tracing::warn!(
-            "missing field, exists: signature={}, hgi={}, file={}, comment={}",
-            exists.0,
-            exists.1,
-            exists.2,
-            exists.3
-        );
-        return bad_req("missing field");
+    let Some(file) = file else {
+        tracing::warn!("missing file");
+        return bad_req("missing file");
     };
 
     let (file, mime, hasher, file_name) = file;
     let hash = hasher.finalize();
 
     tracing::debug!(
-        "user signature={signature:?}, hgi={hgi}, file size={}, hash={}",
+        "file size={}, hash={}",
         hasher.count(),
         hash.to_hex()
     );
 
-    Ok(SubmitReq {
+    Ok(ExtraFileReq {
         file: Some(file),
-        signature,
-        hgi,
-        comment,
         mime,
         hash,
         file_name,
     })
-}
-
-async fn receive_hgi(
-    field: &mut Field<'_>,
-) -> Result<Option<bool>, routes::Error> {
-    let buf = receive_with_limit(field, 1).await?;
-    let Some(buf) = buf else {
-        tracing::debug!("hgi field too large");
-        return bad_req("invalid hgi");
-    };
-
-    Ok(Some(
-        if buf[0] == b'0' {
-            false
-        } else if buf[0] == b'1' {
-            true
-        } else {
-            tracing::debug!("hgi field content invalid");
-            return bad_req("invalid hgi");
-        },
-    ))
-}
-
-async fn receive_signature(
-    field: &mut Field<'_>,
-) -> Result<String, routes::Error> {
-    let buf =
-        receive_with_limit(field, MAX_USER_SIGNATURE_LENGTH * 4).await?;
-    let Some(buf) = buf else {
-        tracing::debug!("user signature field too large");
-        return bad_req("invalid signature");
-    };
-
-    match String::from_utf8(buf) {
-        Ok(sig) => {
-            if !is_valid_user_signature(&sig) {
-                tracing::debug!("invalid user signature");
-                return bad_req("invalid signature");
-            }
-
-            Ok(sig)
-        }
-        Err(err) => {
-            tracing::debug!("expect utf8 in field signature, but: {err}");
-            bad_req("expect utf8 in field signature")
-        }
-    }
 }
 
 async fn receive_file_tmp(
@@ -434,41 +332,6 @@ fn check_content_type(
     *head = None;
 
     Ok(())
-}
-
-async fn receive_comment(
-    field: &mut Field<'_>,
-) -> Result<String, routes::Error> {
-    let buf = receive_with_limit(field, COMMENT_LEN_LIMIT_BYTES).await?;
-    let Some(buf) = buf else {
-        tracing::debug!("comment field too large");
-        return bad_req("invalid comment");
-    };
-
-    String::from_utf8(buf)
-        .map(|it| it.trim().to_owned())
-        .or_else(|err| {
-            tracing::debug!("expect utf8 in field signature, but: {err}");
-            bad_req("expect utf8 in field signature")
-        })
-}
-
-async fn receive_with_limit(
-    field: &mut Field<'_>,
-    limit: usize,
-) -> routes::Result<Option<Vec<u8>>> {
-    let mut buf = vec![];
-    while let Some(chunk) =
-        field.chunk().await.map_err(map_multipart_err)?
-    {
-        if buf.len() + chunk.len() > limit {
-            drain_field(field).await?;
-            return Ok(None);
-        }
-        buf.extend(chunk);
-    }
-
-    Ok(Some(buf))
 }
 
 async fn drain_field(field: &mut Field<'_>) -> routes::Result<()> {

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title -%}
+  上传额外文件
+{%- endblock %}
+
+{% block head -%}
+  {% include "buttonInclude.html" %}
+  <link href="/static/pages/user/extra_file.css?h={{ env!("AH_PAGES_USER_EXTRA_FILE_CSS") }}" rel="stylesheet" />
+{%- endblock %}
+
+{% block content %}
+  <form id="formExtraFile" action="" method="post" enctype="multipart/form-data">
+    <div class="field">
+      <label for="file">文件</label>
+      <input type="file" id="file" name="file" required>
+    </div>
+    <div id="btnSubmit">
+      <button class="button theme">提交</button>
+    </div>
+    <script type="module">
+      import { init } from "/static/pages/user/extra_file.js\
+?h={{ env!("AH_PAGES_USER_EXTRA_FILE_JS") }}";
+      init(formExtraFile,
+      {{ size_min }}, "{{ size_min | filesizeformat }}",
+      {{ size_max }}, "{{ size_max | filesizeformat }}");
+    </script>
+  </form>
+{% endblock %}

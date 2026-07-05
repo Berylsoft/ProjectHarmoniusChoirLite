@@ -17,6 +17,11 @@
     <div>
       <button id="newSubmit" class="button theme">提交</button>
       <script>newSubmit.onclick = () => location = "/user/submit";</script>
+      {% if have_passed -%}
+        <span> </span>
+        <button id="extraFile" class="button">额外文件</button>
+        <script>extraFile.onclick = () => location = "/user/extra_file"</script>
+      {%- endif %}
       {% if is_manager -%}
         <span> </span>
         <button id="manage" class="button">审核</button>

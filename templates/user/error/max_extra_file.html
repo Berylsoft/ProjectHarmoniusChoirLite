@@ -1,0 +1,11 @@
+{% extends "err_base.html" %}
+
+{% block title -%}
+  额外文件数量上限
+{%- endblock %}
+
+{% block content %}
+  <div class="error">
+    额外文件提交数量已达上限: {{ limit }}
+  </div>
+{% endblock %}
