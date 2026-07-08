@@ -1,0 +1,8 @@
+[package]
+name = "state_prototype"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy_ecs = { version = "0.18.1", features = ["debug"] }
+itertools = "0.14.0"
