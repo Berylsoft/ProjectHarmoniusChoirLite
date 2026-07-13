@@ -1,8 +1,9 @@
 use anyhow::Context as _;
+use askama::Template;
 use axum::{
     extract::{Query, State},
     http::{StatusCode, header},
-    response::IntoResponse,
+    response::{Html, IntoResponse},
 };
 use axum_extra::extract::CookieJar;
 use serde::Deserialize;
@@ -28,10 +29,14 @@ pub struct LoginToken {
 
 #[derive(Debug, Deserialize)]
 pub struct LoginReqQuery {
-    token: Box<str>,
+    token: Option<Box<str>>,
     #[cfg(feature = "mock_bot_token")]
     is_manager: bool,
 }
+
+#[derive(Debug, askama::Template)]
+#[template(path = "auth/login.html")]
+struct LoginTemplate;
 
 #[expect(clippy::missing_errors_doc)]
 pub async fn handler(
@@ -42,6 +47,10 @@ pub async fn handler(
     trans: TransactionDeferBegin,
     redir_prefix: RedirPrefix,
 ) -> routes::Result<impl IntoResponse> {
+    let Some(token) = params.token else {
+        return Ok(Html(LoginTemplate.render()?).into_response());
+    };
+
     let token = {
         #[cfg(feature = "mock_bot_token")]
         {
@@ -50,7 +59,7 @@ pub async fn handler(
                 &bot_key,
             );
             LoginToken {
-                id: params.token,
+                id: token,
                 is_manager: params.is_manager,
                 created_at: OffsetDateTime::UNIX_EPOCH,
             }
@@ -58,7 +67,7 @@ pub async fn handler(
         #[cfg(not(feature = "mock_bot_token"))]
         {
             validate_bot_token::<LoginToken, _>(
-                &params.token,
+                &token,
                 &bot_key,
                 |token| {
                     let now = OffsetDateTime::now_utc();
@@ -118,5 +127,6 @@ pub async fn handler(
         StatusCode::SEE_OTHER,
         jar,
         [(header::LOCATION, redir_target)],
-    ))
+    )
+        .into_response())
 }

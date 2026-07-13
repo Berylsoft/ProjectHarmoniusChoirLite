@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title -%}
+  登录
+{%- endblock %}
+
+{% block head -%}
+  {% include "buttonInclude.html" %}
+  <link href="/static/pages/auth/login.css?h={{ env!("AH_PAGES_AUTH_LOGIN_CSS") }}" rel="stylesheet" />
+{%- endblock %}
+
+{% block content %}
+  <form id="login" action="">
+    <div class="field">
+      <label for="token">登录凭据</label>
+      <input type="text"
+        id="token"
+        name="token"
+        required
+        placeholder="点击粘贴登录凭据"
+        >
+    </div>
+    <div style="display: none;">
+      <button id="btnLogin" class="button theme">登录</button>
+    </div>
+    <script type="module">
+      import { init } from "/static/pages/auth/login.js\
+?h={{ env!("AH_PAGES_AUTH_LOGIN_JS") }}";
+      init(token, btnLogin);
+    </script>
+  </form>
+{% endblock %}

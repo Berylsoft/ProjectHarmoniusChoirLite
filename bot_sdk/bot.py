@@ -67,14 +67,10 @@ class PhclBot:
         self.notify_prefix = f"{ws_proto}://{host}/notify/bot?token="
 
     def sign_login(self, id: str, is_manager: bool) -> str:
-        created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        token_body = {
-            "id": id,
-            "is_manager": is_manager,
-            "created_at": created_at
-        }
-        token = self._sign(token_body)
-        return f"{self.login_prefix}{token}"
+        return f"{self.login_prefix}{self._sign_login(id, is_manager)}"
+
+    def sign_login_token(self, id: str, is_manager: bool) -> str:
+        return f"AL{self._sign_login(id, is_manager)}AL"
 
     async def notify_connect(self):
         self.notify = await websockets.connect(self._sign_notify())
@@ -102,6 +98,16 @@ class PhclBot:
         sig = self.key.sign(cbor_data)
         token_bytes = sig + cbor_data
         return base64.urlsafe_b64encode(token_bytes).rstrip(b"=").decode()
+
+    def _sign_login(self, id: str, is_manager: bool) -> str:
+        created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        token_body = {
+            "id": id,
+            "is_manager": is_manager,
+            "created_at": created_at
+        }
+        token = self._sign(token_body)
+        return token
 
     def _sign_notify(self) -> str:
         created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")

@@ -37,6 +37,10 @@ token: token二进制用base64编码
 
 - url: `<prefix>/auth/login?token=<token>`
 
+或将token用AL围绕后以纯文本发出
+
+- text: `AL<token>AL`
+
 ## 通知接收
 
 生成 [ws连接token](#ws连接token), 拼接至url内发起连接

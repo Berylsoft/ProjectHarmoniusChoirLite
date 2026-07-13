@@ -13,6 +13,7 @@ async def main():
 
     bot = PhclBot(handle_notify, handle_closed)
     print(bot.sign_login("2", True))
+    print(bot.sign_login_token("1", True))
     await bot.notify_connect()
 
     sigint = asyncio.Event()
