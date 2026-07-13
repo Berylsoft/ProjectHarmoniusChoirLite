@@ -1,5 +1,5 @@
 export function init(token, btnLogin) {
-  const re = () => /^AL([a-zA-Z0-9-_]+)AL$/;
+  const re = () => /^#AL([a-zA-Z0-9-_]+)#AL$/;
 
   let clipboardFailed = false;
 

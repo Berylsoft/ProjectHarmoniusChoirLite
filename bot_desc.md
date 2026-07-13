@@ -37,9 +37,9 @@ token: token二进制用base64编码
 
 - url: `<prefix>/auth/login?token=<token>`
 
-或将token用AL围绕后以纯文本发出
+或将token用\#AL围绕后以纯文本发出
 
-- text: `AL<token>AL`
+- text: `#AL<token>#AL`
 
 ## 通知接收
 

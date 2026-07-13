@@ -70,7 +70,7 @@ class PhclBot:
         return f"{self.login_prefix}{self._sign_login(id, is_manager)}"
 
     def sign_login_token(self, id: str, is_manager: bool) -> str:
-        return f"AL{self._sign_login(id, is_manager)}AL"
+        return f"#AL{self._sign_login(id, is_manager)}#AL"
 
     async def notify_connect(self):
         self.notify = await websockets.connect(self._sign_notify())
