@@ -12,6 +12,7 @@ pub enum Type {
     Ogg,
     Mp3,
     M4a,
+    _3gpp,
     Aac,
 }
 
@@ -32,6 +33,8 @@ impl Type {
             Some(Self::Mp3)
         } else if &head[4..12] == b"ftypM4A " {
             Some(Self::M4a)
+        } else if &head[4..12] == b"ftyp3gp4" {
+            Some(Self::_3gpp)
         } else if head[..2] == [0xff, 0xf1] || head[..2] == [0xff, 0xf9] {
             Some(Self::Aac)
         } else {
@@ -47,6 +50,7 @@ impl Type {
             Self::Ogg => "ogg",
             Self::Mp3 => "mp3",
             Self::M4a => "m4a",
+            Self::_3gpp => "3gp",
             Self::Aac => "aac",
         }
     }
@@ -60,6 +64,7 @@ impl Type {
             Self::Ogg => "application/ogg",
             Self::Mp3 => "audio/mpeg",
             Self::M4a => "audio/mp4",
+            Self::_3gpp => "audio/3gpp",
             Self::Aac => "audio/aac",
         }
         .parse()
@@ -74,6 +79,7 @@ impl Type {
             ("application", "ogg") => Self::Ogg,
             ("audio", "mpeg") => Self::Mp3,
             ("audio", "mp4") => Self::M4a,
+            ("audio", "3gpp") => Self::_3gpp,
             ("audio", "aac") => Self::Aac,
             _ => return None,
         })
