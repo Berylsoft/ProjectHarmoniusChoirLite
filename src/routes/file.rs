@@ -11,6 +11,7 @@ pub enum Type {
     Flac,
     Ogg,
     Mp3,
+    Mp4,
     M4a,
     _3gpp,
     Aac,
@@ -31,6 +32,8 @@ impl Type {
                 || head[..2] == [0xff, 0xf2])
         {
             Some(Self::Mp3)
+        } else if &head[4..12] == b"ftypmp42" {
+            Some(Self::Mp4)
         } else if &head[4..12] == b"ftypM4A " {
             Some(Self::M4a)
         } else if &head[4..12] == b"ftyp3gp4" {
@@ -49,6 +52,7 @@ impl Type {
             Self::Flac => "flac",
             Self::Ogg => "ogg",
             Self::Mp3 => "mp3",
+            Self::Mp4 => "mp4",
             Self::M4a => "m4a",
             Self::_3gpp => "3gp",
             Self::Aac => "aac",
@@ -63,7 +67,8 @@ impl Type {
             Self::Flac => "audio/flac",
             Self::Ogg => "application/ogg",
             Self::Mp3 => "audio/mpeg",
-            Self::M4a => "audio/mp4",
+            Self::Mp4 => "audio/mp4",
+            Self::M4a => "audio/x-m4a",
             Self::_3gpp => "audio/3gpp",
             Self::Aac => "audio/aac",
         }
@@ -78,7 +83,8 @@ impl Type {
             ("audio", "flac") => Self::Flac,
             ("application", "ogg") => Self::Ogg,
             ("audio", "mpeg") => Self::Mp3,
-            ("audio", "mp4") => Self::M4a,
+            ("audio", "mp4") => Self::Mp4,
+            ("audio", "x-m4a") => Self::M4a,
             ("audio", "3gpp") => Self::_3gpp,
             ("audio", "aac") => Self::Aac,
             _ => return None,
