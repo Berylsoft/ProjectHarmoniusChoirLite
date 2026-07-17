@@ -44,11 +44,6 @@ fn main() -> anyhow::Result<()> {
         );
     }
 
-    tracing::info!("initialize database");
-    let conn = db_open("database.db", OpenFlags::default())
-        .context("db_open")?;
-    drop(conn);
-
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -77,6 +72,11 @@ async fn run() -> anyhow::Result<()> {
     let db_path = var_opt("DATABASE_PATH")
         .context("DATABASE_PATH")?
         .context("DATABASE_PATH")?;
+
+    tracing::info!("initialize database");
+    let conn =
+        db_open(&db_path, OpenFlags::default()).context("db_open")?;
+    drop(conn);
 
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
