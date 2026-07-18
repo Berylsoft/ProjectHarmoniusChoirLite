@@ -86,7 +86,7 @@ export function init(sid, selPass, selGroup, submit, comment) {
 
         alert(`${res.status} ${res.statusText}, ${reqId}, ${msg}`);
       } else {
-        globalThis.location.reload();
+        globalThis.location = "../submits";
       }
     });
   };
