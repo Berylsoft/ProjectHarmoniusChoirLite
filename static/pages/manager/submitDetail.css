@@ -1,6 +1,7 @@
 :root {
   display: flex;
   justify-content: center;
+  min-width: fit-content;
 }
 
 body {
@@ -33,6 +34,8 @@ body > div {
   background-color: var(--bgDark);
 
   line-break: anywhere;
+
+  max-width: var(--400unit);
 }
 
 .textBox > span:first-child {
@@ -40,8 +43,8 @@ body > div {
   font-size: var(--14unit);
 }
 
-.textBox > pre {
-  margin: 0;
+.textBox > div {
+  white-space-collapse: preserve;
 }
 
 #comment {

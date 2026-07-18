@@ -23,7 +23,7 @@
     {% if comment != "" %}
       <div class="textBox">
         <span>备注</span>
-        <pre>{{ comment }}</pre>
+        <div>{{ comment }}</div>
       </div>
     {% endif %}
     <div>提交时间: {{ created_at }}</div>
@@ -59,7 +59,7 @@
             <textarea type="text"
               id="comment" placeholder="输入"></textarea>
           {% else %}
-            <pre>{{ status.comment }}</pre>
+            <div>{{ status.comment }}</div>
           {% endif %}
         </div>
       {% endif %}
