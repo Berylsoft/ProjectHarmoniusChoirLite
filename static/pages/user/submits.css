@@ -40,11 +40,13 @@ body > div {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--10unit);
 }
 
 .item > div:nth-child(2) > div:first-child {
   display: flex;
   gap: var(--2unit);
+  min-width: fit-content;
 }
 
 .textBox {
