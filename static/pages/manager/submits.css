@@ -36,22 +36,12 @@ body > div:first-child {
   display: contents;
 }
 
-#submits > div:first-child > div {
+#submits > div:nth-child(even) > div {
+  background-color: var(--bgLightSec);
+}
+
+#submits > div > div {
   padding: var(--10unit) var(--15unit);
-}
-#submits > div:not(:first-child) > div {
-  padding: var(--5unit) var(--15unit);
-}
-
-#submits > div > div:not(:last-child) {
-  border-right: var(--1unit) solid var(--stroke);
-}
-
-#submits > div:first-child > div {
-  border-bottom: var(--2unit) solid var(--stroke);
-}
-#submits > div:not(:first-child):not(:last-child) > div {
-  border-bottom: var(--1unit) solid var(--stroke);
 }
 
 #submits > div > div {
