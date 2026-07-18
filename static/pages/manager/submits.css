@@ -1,6 +1,7 @@
 :root {
   display: flex;
   justify-content: center;
+  min-width: fit-content;
 }
 
 body {
