@@ -14,12 +14,15 @@ pub enum Type {
     Mp4,
     M4a,
     _3gpp,
+    Mpeg4Generic,
     Aac,
 }
 
 impl Type {
+    pub const MIN_SIZE: usize = 20;
+
     #[must_use]
-    pub fn detect(head: &[u8; 12]) -> Option<Self> {
+    pub fn detect(head: &[u8; Self::MIN_SIZE]) -> Option<Self> {
         if &head[..4] == b"RIFF" && &head[8..12] == b"WAVE" {
             Some(Self::Wav)
         } else if &head[..4] == b"fLaC" {
@@ -38,11 +41,29 @@ impl Type {
             Some(Self::M4a)
         } else if &head[4..12] == b"ftyp3gp4" {
             Some(Self::_3gpp)
+        } else if &head[4..8] == b"ftyp" && Self::is_mpeg4_generic(head) {
+            Some(Self::Mpeg4Generic)
         } else if head[..2] == [0xff, 0xf1] || head[..2] == [0xff, 0xf9] {
             Some(Self::Aac)
         } else {
             None
         }
+    }
+
+    fn is_mpeg4_generic(head: &[u8; Self::MIN_SIZE]) -> bool {
+        let box_size =
+            (u32::from_be_bytes((&head[..4]).try_into().unwrap())
+                as usize)
+                .min(Self::MIN_SIZE);
+        if !(box_size > 0x10 && box_size.is_multiple_of(4)) {
+            return false;
+        }
+
+        (0..((box_size - 0x10) / 4)).any(|idx| {
+            let start = 0x10 + idx * 4;
+            let end = start + 4;
+            matches!(&head[start..end], b"iso6" | b"isom" | b"avc1")
+        })
     }
 
     #[must_use]
@@ -55,6 +76,7 @@ impl Type {
             Self::Mp4 => "mp4",
             Self::M4a => "m4a",
             Self::_3gpp => "3gp",
+            Self::Mpeg4Generic => "mpeg4",
             Self::Aac => "aac",
         }
     }
@@ -70,6 +92,7 @@ impl Type {
             Self::Mp4 => "audio/mp4",
             Self::M4a => "audio/x-m4a",
             Self::_3gpp => "audio/3gpp",
+            Self::Mpeg4Generic => "application/mpeg4-generic",
             Self::Aac => "audio/aac",
         }
         .parse()
@@ -86,6 +109,7 @@ impl Type {
             ("audio", "mp4") => Self::Mp4,
             ("audio", "x-m4a") => Self::M4a,
             ("audio", "3gpp") => Self::_3gpp,
+            ("application", "mpeg4-generic") => Self::Mpeg4Generic,
             ("audio", "aac") => Self::Aac,
             _ => return None,
         })

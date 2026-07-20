@@ -352,7 +352,7 @@ async fn receive_file_tmp(
     let file_size_err =
         || res_see_other_err_res(redir_prefix, "/user/error/file_size");
 
-    let mut head = Some([0_u8; 12]);
+    let mut head = Some([0_u8; file::Type::MIN_SIZE]);
     let mut head_idx = 0;
     while let Some(chunk) =
         field.chunk().await.map_err(map_multipart_err)?
@@ -387,6 +387,7 @@ async fn receive_file_tmp(
 
     if usize::try_from(hasher.count()).unwrap_or(usize::MAX)
         < *SIZE_RANGE.start()
+        || head.is_some()
     {
         tracing::debug!("file size too small");
         return file_size_err();
@@ -398,7 +399,7 @@ async fn receive_file_tmp(
 #[inline]
 fn check_content_type(
     content_type: &mut Mime,
-    head: &mut Option<[u8; 12]>,
+    head: &mut Option<[u8; file::Type::MIN_SIZE]>,
     head_idx: &mut usize,
     chunk: &axum::body::Bytes,
     redir_prefix: &RedirPrefix,
@@ -415,7 +416,7 @@ fn check_content_type(
         *head_idx += 1;
     }
 
-    if *head_idx < 12 {
+    if *head_idx < file::Type::MIN_SIZE {
         return Ok(());
     }
 
