@@ -19,7 +19,7 @@ pub enum Type {
 }
 
 impl Type {
-    pub const MIN_SIZE: usize = 20;
+    pub const MIN_SIZE: usize = 0x20;
 
     #[must_use]
     pub fn detect(head: &[u8; Self::MIN_SIZE]) -> Option<Self> {

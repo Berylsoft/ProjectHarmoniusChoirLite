@@ -314,7 +314,7 @@ fn check_content_type(
         *head_idx += 1;
     }
 
-    if *head_idx < 12 {
+    if *head_idx < file::Type::MIN_SIZE {
         return Ok(());
     }
 

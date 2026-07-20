@@ -409,7 +409,7 @@ fn check_content_type(
     };
 
     for ch in chunk {
-        if *head_idx >= 12 {
+        if *head_idx >= file::Type::MIN_SIZE {
             break;
         }
         buf[*head_idx] = *ch;
