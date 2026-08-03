@@ -102,13 +102,17 @@ pub async fn handler(
 
             (user_id, res.token_id, redir_to_submit)
         } else {
-            let res = sql::ins_user(&trans, token.id.into())
+            let res = sql::ins_user(&trans, token.id.clone().into())
                 .context("ins_user")?
                 .context("should return id and token_id")?;
             (res.id, res.token_id, false)
         };
 
     trans.commit().await?;
+
+    tracing::info!(
+        "user (uid){user_id},(utid){token_id} login with token: {token:?}"
+    );
 
     let access_token = AccessToken::<access_token::User>::new(
         user_id,
